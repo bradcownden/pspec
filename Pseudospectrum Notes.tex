@@ -1,0 +1,832 @@
+\documentclass[11pt,letterpaper]{article}
+\usepackage[T1]{fontenc}
+\usepackage{fullpage}
+\usepackage[top=2cm, bottom=4.5cm, left=2.5cm, right=2.5cm]{geometry}
+\usepackage{mathtools}
+\usepackage{amsmath,amsfonts,amssymb}
+\usepackage{lastpage}
+\usepackage[inline]{enumitem}
+\usepackage{fancyhdr}
+\usepackage{mathrsfs}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{graphicx}
+\usepackage{caption, subcaption}
+\usepackage{appendix}
+\usepackage{hyperref}
+\usepackage{titlesec}
+\usepackage{fancyvrb}
+\hypersetup{colorlinks=true, linkcolor=blue, linkbordercolor={0 0 1}}
+\usepackage{multirow}
+
+\renewcommand{\arraystretch}{1.5}   % Makes tables look better
+\titlespacing*{\section}{0pt}{0.65\baselineskip}{0.5\baselineskip}
+
+\setlength{\parindent}{0.0in}
+\setlength{\parskip}{0.05in}
+\setcounter{MaxMatrixCols}{20}      % Allow matrices with more than 10 columns
+
+\newcommand{\p}{\partial}
+\newcommand{\mc}{\mathcal}
+\newcommand{\ceil}[1]{\lceil#1\rceil}
+\newcommand{\floor}[1]{\lfloor#1\rfloor}
+\newcommand{\scri}{$\mathscr{I}^+$}
+\definecolor{grayout}{gray}{0.8}
+
+\pagestyle{fancyplain}
+\lhead{}
+\chead{\Large{Soliton Psuedospectrum Calculations}}
+\rhead{}
+\cfoot{\small\thepage}
+\headsep 32pt
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+	
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Time-Reduced System for the YM Soliton}
+	The non-linear YM soliton outside a unit ball has an equation of motion given by
+	\begin{align}
+		\p^2_t f = \p^2_r f + \frac{1}{r} \p_r f + \frac{2}{r^2} f (1-f^2)
+	\end{align}
+where $t\in(-\infty, \infty)$ and $r \in [1,\infty)$. We know that there exists a stationary, minimum energy solution known as the \emph{half-kink} given by
+	\begin{align}
+		Q(r) = \frac{r^2-1}{r^1+1} \, .
+	\end{align}
+Consider a rescaling of the function $f(t,r)$ by $f \to r^{-1/2} f$. The equation of motion is then
+	\begin{align}
+		\p^2_t f = \p^2_r f + \frac{2f}{r^2}\left(\frac{9}{8}-\frac{f^2}{r} \right) \, .
+	\end{align}
+Now, linearize around the half-kink by expanding $f$ as $f = \bar Q + \phi$ where $\bar Q$ is the rescaled half-kink. We can then write
+	\begin{align}
+		\p^2_t \phi = \p^2_r \phi - V \phi + \mc{O}(\phi^2) \qquad \text{where} \quad V \equiv \frac{3}{r^2}\left(2 Q^2 - \frac{3}{4} \right) \, .
+	\end{align}
+This is simply a 2D wave equation and as such we can use the result from Jaramillo {\it et al.} (PRX 2021) which takes the hyperboloidal compactification
+	\begin{align}
+		\label{coordinates}
+		t = \lambda (u - h(x)) \, \quad r = \lambda g(x)
+	\end{align}
+and produces the equation
+	\begin{align}
+		\Big[\left(\frac{h'^2}{g'^2} - 1 \right) \p^2_u + \frac{2}{g'}\left(\frac{h'}{g'} \right) \p^2_{u x} + \frac{1}{g'}\p_x \left(\frac{h'}{g'} \right) \p_u + \frac{1}{g'}\p_x \left(\frac{1}{g'} \p_x \right) - \tilde{V} \Big] \phi = 0
+	\end{align}
+where the potential has been multiplied by the (constant) characteristic scale factor $\lambda$ such that $\tilde{V} = \lambda^2 V$. After some factoring we can write this is a form that makes the Sturm-Louiville functions immediately obvious:
+	\begin{align}
+		\p^2_u \phi = \frac{g'}{g'^2-h'^2}\left[\frac{2 h'}{g'}\p^2_{u x}\phi + \p_x \left( \frac{h'}{g'} \right) \p_u \phi  \right] + \frac{g'}{g'^2-h'^2}\left[\frac{1}{g'}\p^2_x \phi - \frac{g''}{g'^2} \p_x \phi - g' \tilde V \phi \right] \, .
+	\end{align}
+We define the Sturm-Louiville variables by
+	\begin{align}
+		w(x) = \frac{g'^2-h'^2}{g'}, \quad \gamma(x) = \frac{h'}{g'}, \quad p(x) = \frac{1}{g'}, \quad q(x) = g' \tilde V
+	\end{align}
+and perform the time-reduction via $\psi = \p_u \phi$ so that
+	\begin{align}
+		\p_u \psi = \frac{1}{w} \left[2 \gamma \p_x + \p_x \gamma \right] \psi + \frac{1}{w} \left[\p_x(p \p_x) - q \right] \phi \equiv L_2 \psi + L_1 \phi \, .
+	\end{align}
+There are restrictions on the Sturm-Louiville variables owing to the general definition of the operator. These are:
+\begin{itemize}
+	\item $w(x) > 0 \forall x \in (-1,1)$
+	\item $w(x)$ must be invertible $\forall x \in (-1,1)$
+	\item To obey the commutivity of the inner product, the combination $p(x) \phi(x)$ must vanish at the endpoints. In our case, the point $x=1$ corresponds to future null infinity, i.e. the radiative zone, where the function $\phi$ is non-zero. Thus, $p$ must vanish at this point. At the inner boundary, however, $x = -1$ does not correspond to $\mathscr{I}^-$ and there is indeed a boundary condition on the function that $\phi(x=-1)=0$; thus, $p$ can take any value here
+\end{itemize}
+Additionally, we have restrictions on the compactification choice that ensures future null infinity is mapped to $x=1$. These are:
+\begin{itemize}
+	\item $g(x): x \in [-1,1] \to r = g(x) \in [1,\infty)$ is everywhere greater than $1$ and $g(x)$ is at least $C^0$.
+	\item The curvature scalar is $n^\mu n_\mu \propto (dh/dr)^2 - 1$. This means that our approach to infinity must follow a null curve such that $|dh/dr| \to 1$ as $r \to \infty$. Furthermore, we want to consider spacelike curves near $r = 1$ which means $|dh/dr| \leq 1$ as $r \to 1$
+\end{itemize}
+
+Given these restrictions on the choices of $h(x)$, $g(x)$ we can identify many compactification schemes that may be of interest. Of course, the choice of compactification should never affect the result of the analysis so exploring multiple compactifications will be a check on our results. Some choices for the height function $h(x)$ are ${\sqrt{g^2(x) + 1},~ \ln(\cosh(g(x) - 1)),~\text{and} ~ g(x) - \ln g(x)}$, while some choices for the compactification $g(x)$ are ${ 2/(1-x),~\text{and} ~1 + \exp\left[\tanh^{-1}(x)\right]}$. Of the possible choices, we choose to focus on the two cases outlined in Table~\ref{t: comps}.
+
+\begin{table}[h]
+	\centering
+	\begin{tabular}{| c | c | c |}
+		\hline
+		Choice $A$ & $h(x) = \sqrt{g^2(x)+1}$ & $g(x) = 1 + \exp\left[\tanh^{-1}(x)\right]$ \\ \hline
+		Choice $B$ & $h(x) = g(x) - \ln g(x)$ & $g(x) = 2/(1-x)$ \\ \hline
+	\end{tabular}
+	\caption{Two choices of a combination of height function and compactification function will be used to verify that the results are independent of a specific choice of compactification.}
+	\label{t: comps}
+\end{table}
+
+\hrule
+By defining $\psi(u,x) \equiv \p_u \phi(u,x)$ we can write the left-hand side of \eqref{linear eom} in terms of a second Sturm-Liouville operator, $L_2$, 
+\begin{align}
+	\p_u \psi - \frac{1}{\rho}\left[ 2 p h' \p_x + \p_x\left(p h'\right) \right] \psi \equiv \p_u \psi - L_2 \psi
+\end{align}
+where
+\begin{align}
+	\label{L2}
+	L_2 = \frac{1}{\rho} \left[2\gamma \p_x + \p_x \gamma \right], \qquad \gamma(x) = p h' \, .
+\end{align}
+
+Finally, the linearized equation for perturbations around the static kink can be written as
+\begin{align}
+	\label{operator eom}
+	\p_u \psi = L_2 \psi + L_1 \phi \, .
+\end{align}
+Defining the vector $\Phi = (\phi, \psi)^T$, the system can be written in the time-reduced form
+\begin{align}
+	\label{time reduced}
+	\p_u \Phi = i L \Phi \qquad \text{where} \quad L = -i
+	\begin{pmatrix}
+		0 & 1 \\
+		L_1 & L_2
+	\end{pmatrix}
+	\, .
+\end{align}
+with $L_1$ given in~\eqref{L1} and $L_2$ given in~\eqref{L2}. Taking the ansatz $\Phi(u,x)=\Phi(x)e^{i\omega u}$ gives the spectral problem
+\begin{align}
+	\label{spectral equation}
+	\begin{pmatrix}
+		0 & 1 \\
+		L_1 & L_2
+	\end{pmatrix}
+	\begin{pmatrix}
+		\phi \\ \psi
+	\end{pmatrix}
+	=
+	i \omega
+	\begin{pmatrix}
+		\phi \\ \psi
+	\end{pmatrix} \, .
+\end{align}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Energy Inner Product}
+To continue further in the calculation of the psuedospectrum, it is important to define a ``proper'' inner product. Jaramillo proposes the energy inner product which, for a complex scalar on (1+1)-dimensional Minkowski background with a scattering potential $V_\ell$, comes from examining the expression for the energy of a constant-time slice:
+	\begin{align}
+		\label{scalar energy}
+		E = \frac{1}{2}\int^b_a \left[ (g'^2 - h'^2) \p_u \phi^* \p_u \phi + \p_x \phi^* \p_x \phi + g'^2 V_{\ell} \phi^* \phi \right] \frac{1}{|g'|} dx \, .
+	\end{align}
+The analogue for the YM soliton comes from multiplying equation~\eqref{operator eom} by $\psi$
+	\begin{align}
+		\rho \psi \p_u \psi = 2 \gamma \psi \p_x \psi + \p_x \gamma \psi^2 - \p_x p \psi \p_x \phi - p \psi \p^2_x \phi + Q\psi \phi \, ,
+	\end{align} 
+and noting that
+	\begin{align}
+		2 F(x) \phi \p_u \phi = \p_u \left(F(x) \phi^2 \right)
+	\end{align}
+for any function $F(x)$. Then we can write
+	\begin{align}
+		\p_u \left[ \frac{1}{2} \rho \psi^2 - \frac{1}{2} p \left( \p_x \phi \right)^2 - \frac{1}{2} Q \phi^2 \right] = \p_x \Big[ \gamma \psi^2 - p \psi \p_x \phi \Big] \, .
+	\end{align}
+We identify the terms in square brackets in the left-hand side as the Bondi-type energy
+	\begin{align}
+		\label{Bondi energy}
+		E = \frac{1}{2} \int^1_{-1} dx \, \left( \rho \psi^2 - p \left( \p_x \phi \right)^2 - Q \phi^2 \right)
+	\end{align}
+Following Jaramillo, we define the energy inner product of two solutions to~\eqref{spectral equation} to be
+	\begin{align}
+		\label{energy product}
+		\langle \Phi_1, \Phi_2 \rangle_E = \frac{1}{2} \int^1_{-1} dx \, \Big( p \psi_1^* \psi_2 - p (\p_x \phi_1)^* (\p_x \phi_2) - Q \phi_1^* \phi_2^* \Big)
+	\end{align}
+so that $||\Phi||^2_E = \langle \Phi, \Phi \rangle_E$ by construction.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\section{Spectral Methods}
+\label{s: spectral methods}
+For the discretization of operators/derivatives, we use the `interior', `roots', or `Gauss-Chebyshev' abscissa given by
+\begin{align}
+	\bar x_i = \cos \left( \frac{\pi (2i - 1)}{2N} \right) \quad i = 1,2,\ldots,N \, .
+\end{align}
+In this basis, the expression for the first derivative matrix $\mathbb{D}$ and second derivative matrix $\mathbb{D}^{(2)}$ are given by
+\begin{align}
+	\mathbb{D} &= \begin{dcases}
+		\frac{\bar x_j}{2(1 - \bar x_j^2)} & \text{if } i = j\\
+		\frac{(-1)^{(i+j)}}{(\bar x_i - \bar x_j)} \sqrt{\frac{1 - \bar x_j^2}{1 - \bar x_i^2}} & \text{if } i \neq j
+	\end{dcases} \\
+	\mathbb{D}^{(2)} &= \begin{dcases}
+		\frac{\bar x_j^2}{(1- \bar x_j^2)^2} - \frac{(N^2 - 1)}{3(1 - \bar x_j^2)} & \text{if } i = j \\
+		\mathbb{D}_{ij} \left(\frac{\bar x_i}{(1-\bar x_i^2)} - \frac{2}{(\bar x_i - \bar x_j)} \right) & \text{if } i \neq j
+	\end{dcases}
+\end{align}
+
+Integrals can be evaluated using Gaussian quadrature and a decomposition of a function in a basis of Chebyshev polynomials; alternatively, spectral collocation can also be used to evaluate integrals. We introduce Clenshaw-Curtis quadrature.
+
+\subsection{Clenshaw-Curtis Quadrature}
+
+Following Mason \& Handscomb, we want to determine the integral
+\begin{align}
+	I(f) = \int^1_{-1}w(x)f(x) dx
+\end{align}
+when the function $f(x)$ is interpolated by
+\begin{align}
+	f(x) \simeq f_N(x) = \sum^N_{i=0} c_i T_i(\bar x_i) \quad \text{where } \bar x_i = \cos \left( \frac{(2i-1)\pi}{2(N+1)}\right)\, , \: i = 1,\ldots,N+1 \, .
+\end{align}
+We can then write the approximation to the integral $I(f) \simeq I_N(f)$ as
+\begin{align}
+	I_N(f) &= \sum_{i=1}^{N+1} \omega_i f(\bar x_i) \\
+	\text{where } \omega_i &= \sum_{j=0}^N{}' \frac{2 a_j}{N+1} T_j(\bar x_i) \\
+	\text{and } a_j &= \int^1_{-1} w(x) T_j(x) dx \, .
+\end{align}
+Note that the primed sum carries an extra factor of $1/2$ in the first term. To calculate $I_N(f)$, we further note that when $w(x) = 1$, we have
+\begin{align}
+	\int^1_{-1} T_j(x) dx = \begin{dcases}
+		\frac{(-1)^j + 1}{1 - j^2} & j \neq 1 \\
+		\qquad 0 & j = 1
+	\end{dcases}
+\end{align}
+and so
+\begin{align}
+	\omega_i &= \frac{2}{N+1}\left[1 - 2 \sum_{k=0}^{\floor{N/2}} \frac{T_{2k}(\bar x_i)}{4k^2 - 1} \right] \\
+	I_N(f) &= \frac{2}{N+1}\sum_{i=1}^{N+1} f(\bar x_i) \left[ 1 - 2 \sum_{k=0}^{\floor{N/2}} \frac{T_{2k}(\bar x_i)}{4k^2 - 1} \right]\, .
+\end{align}
+When the integrand $f(x)$ is a product of functions, each of which is described in terms of an interpolation in the zeros of $T_{N+1}(x)$, the integral can be approximated by
+\begin{align}
+	I(f(x)g(x)\mu(x)) \simeq I_N(fg\mu) = f^T(\bar x) \cdot C_\mu(\bar x) \cdot g(\bar x)
+\end{align}  
+where $f^T(\bar x)$ is a row vector of the function $f(x)$ evaluated on the $\bar x$ abscissa, and the diagonal ${N\times N}$ matrix $C_\mu (\bar x)$ has components
+\begin{align}
+	(C_\mu)_{ii} = \frac{2 \mu(\bar x_i)}{N + 1} \left[ 1 - 2\sum_{k=1}^{\floor{N/2}} \frac{T_{2k}(\bar x_i)}{4k^2 - 1}\right] \, .
+\end{align}
+
+\subsection{Gram Matrices}
+
+Now we wish to apply this method to the evaluation of the energy inner product given in \eqref{energy product}. Using Clenshaw-Curtis quadrature with the Boyd transformation, we can see that
+\begin{align}
+	\langle \Phi_1, \Phi_2 \rangle_E &= \frac{1}{2}\int^1_{-1} \rho \psi_1^\dagger \psi_2 - \frac{1}{2} \int^1_{-1} p \left(\mathbb{D} \phi_1 \right)^\dagger \mathbb{D} \phi_2 - \frac{1}{2} \int^1_{-1} Q \phi_1^\dagger \phi_2 \\
+	&= \frac{1}{2} \sum_{j=1}^N w_j \rho(\cos t_j) \psi_1^\dagger(\cos t_j)\psi_2 (\cos t_j) - \frac{1}{2}\sum_{j=1}^N w_j p(\cos t_j) \left(\mathbb{D} \phi_1 \right)^\dagger (\cos t_j) \mathbb{D} \phi_2 (\cos t_j) \nonumber \\
+	& \qquad - \frac{1}{2} \sum_{j=1}^N w_j Q(\cos t_j) \phi_1^\dagger(\cos t_j) \phi_2 (\cos t_j) \\
+	& = \psi_1^T (\bar x) \cdot \text{diag}\left[\frac{1}{2} \sum_{j=1}^N w_j \rho(\cos t_j) \right] \cdot \psi_2(\bar x) + \phi_1^T(\bar x) \cdot \mathbb{D}^T \cdot \text{diag}\left[-\frac{1}{2} \sum_{j=1}^N w_j p(\cos t_j) \right] \cdot \mathbb{D} \cdot \phi_2(\bar x) \nonumber \\
+	& \quad +  \phi_1^T(\bar x) \cdot \text{diag}\left[-\frac{1}{2} \sum_{j=1}^N w_j Q(\cos t_j) \right] \cdot \phi_2(\bar x) \, .
+\end{align}
+After defining the Gram matrix, $G$, this is
+\begin{align}
+	\langle \Phi_1, \Phi_2 \rangle_E = \Phi_1 \cdot G \cdot \Phi_2 = \left( \phi^*_1, \psi^*_1 \right)
+	\begin{pmatrix}
+		G^E_1 & 0 \\
+		0 & G^E_2 \\
+	\end{pmatrix}
+	\begin{pmatrix}
+		\phi_2 \\
+		\psi_2\\
+	\end{pmatrix} \, ,
+\end{align}
+with the diagonals given by
+\begin{align}
+	G^E_1 &= \left(\mathbb{D}\right) ^T \cdot \text{diag}\left[-\frac{1}{2} \sum_{j=1}^N w_j p(\cos t_j) \right] \cdot \mathbb{D} + \text{diag}\left[-\frac{1}{2} \sum_{j=1}^N w_j Q(\cos t_j) \right] \\
+	G^E_2 &= \text{diag}\left[\frac{1}{2} \sum_{j=1}^N w_j \rho(\cos t_j) \right] \, .
+\end{align}
+
+\subsection{Pseudospectrum}
+
+In terms of the energy inner product given by the Gram matrix $G$, the pseudospectrum is
+\begin{align}
+	\sigma^\epsilon_G(M) = \{\lambda \in \mathbb{C}: s_{\text{min}} \left( \sqrt{\lambda}: \lambda \in \sigma(M^\dagger M) \right) < \epsilon \} \, ,
+\end{align}
+where $s_{\text{min}}$ is the smallest singular value from Singular Value Decomposition of the expression $M^\dagger M$. Finally, the adjoint of the matrix in the basis of the energy inner product is given by
+\begin{align}
+	\label{adjoint}
+	M^\dagger = G^{-1} M^* G \, .
+\end{align}
+Note that $M^*$ is the conjugate transpose, i.e. $M^*_{ij} = \bar M_{ji}$. Thus, the prescription for calculating the pseudospectrum with respect to the energy inner product~\eqref{energy product} is
+\begin{itemize}
+	\item For a given degree of discretization, $N$, calculate the Gram matrices $G^E_1$ and $G^E_2$ using Clenshaw-Curtis quadrature.
+	\item Calculate the inverses of each Gram matrix to construct the inverse of $G$.
+	\item For each shifted matrix $\tilde L$ repeat the following:
+		\begin{itemize}
+			\item Calculate the adjoint of $\tilde L$ using~\eqref{adjoint}.
+			\item Determine the smallest singular value of $\tilde L^\dagger \tilde L$.
+		\end{itemize}
+\end{itemize}
+
+\end{document}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Here we collect some general results for spectral methods using the Chebyshev polynomials as the basis functions. First, note that any function $f(x)$ can be approximated by a Chebyshev interpolant by evaluating $f(x)$ at a set of appropriate collocation points $x_i$
+\begin{align}
+	\label{collocations}
+	f^N(x_i) = f(x_i) \, , \quad x_i = \cos \left( \frac{i \pi}{N} \right) , \quad i \in [0,1,\ldots,N] \, ,
+\end{align}
+and using the cardinal functions $C_i(x)$ to approximate the function at an arbitrary $x$
+\begin{align}
+	f(x) &\approx \sum_{i=0}^N f^N(x_i) C_i(x) \\
+	\text{where\footnotemark~} C_i(x) &= \frac{2}{\alpha_i N} \sum_{j = 0}^N \frac{1}{\alpha_j} T_j(x_i) T_j(x) \, .
+\end{align}
+\footnotetext{The numerical factor $\alpha_i$ is defined such that $\alpha = 2$ if $i = 0~\text{or}~N$; otherwise, $\alpha=1$.}
+Using this pseudospectral representation, the interpolants for the derivative of the function are related to the interpolants of the original function via
+\begin{align}
+	\left(f'\right)^N(x_i) = \sum_{j=0}^N \mathbb{D}_{ij} f^N(x_j)
+\end{align}
+The interpolants for the derivative of the function are related to the interpolants of the original function via
+\begin{align}
+	\left(f'\right)_N(x_i) = \sum_{j=0}^{N-1} \mathbb{D}^{(1)}_{ij} f_N(x_j)
+\end{align}
+where $\mathbb{D}^{(1)}_{ij}$ is an element of the first-derivative matrix
+\begin{align}
+	\mathbb D^{(1)} = \begin{dcases}
+		\frac{x_i}{2(1-x_i^2)} & i = j \\
+		\frac{(-1)^{i+j}}{(x_i - x_j)} \sqrt{\frac{(1-x_j^2)}{(1 - x_i^2)}} & i \neq j
+	\end{dcases} 
+\end{align}
+The second derivative matrix has elements
+\begin{align}
+	\mathbb{D}^{(2)} = \begin{dcases}
+		\frac{x_i^2}{(1-x_i^2)^2} - \frac{(N^2 - 1)}{3(1-x_i^2)} & i = j \\
+		\mathbb{D}^{(1)}_{ij} \left[ \frac{x_i}{1-x_i^2} - \frac{2}{x_i - x_j}\right] & i \neq j
+	\end{dcases}
+\end{align}
+
+In the basis of Chebyshev polynomials, the integral
+\begin{align}
+	\label{product integral}
+	I_\mu (f,g) = \int^1_{-1} f(x) g(x) d \mu(x)
+\end{align}
+is approximated at $N$ points by $I_\mu(f,g) \approx I^N_\mu(f,g) = \left( f^N \right)^T \cdot C^N_\mu \cdot g^N$ where the diagonal matrix $C^N_\mu$ is given by
+\begin{align}
+	\label{integral approx matrix}
+	\left( C^N_\mu \right)_{ii} = \frac{2 \mu(x_i)}{\alpha_i N} \left(1 - \sum_{k=1}^{\floor{\frac{N}{2}}} T_{2k}(x_i) \left(\frac{2 - \delta_{2k, N}}{4k^2 - 1} \right) \right)
+\end{align}
+and $f^N$, $g^N$ are the values of the functions at the collocation points~\eqref{collocations}.
+Therefore, we simply take $\mu(x) = - \sigma(x) \rho(x) \equiv - p(x)$ in~\eqref{integral approx matrix} to calculate $C_p$, and $\mu(x) = \rho(x)$ to calculate $C_\rho$.
+
+
+Substituting \eqref{regular singularity} into \eqref{YM standard form} and expanding up to next-to-leading order in $x-1$, we obtain the characteristic equation $r^2 - 4 = 0$ which has solutions $r = \pm 2$ that differ by an integer, i.e. $r_1 - r_2 = 4$. We also obtain a set of recursion relation among the $a_n$ of the form
+\begin{align}
+	\label{recursions 1}
+	4 a_1 (r^2 + 2r - 3) + a_0 (2r+1) &= 0 \\
+	\label{recursions 2}
+	4 a_{n+2} \left( (n+r+2)^2 - 4\right) + a_{n+1}\left(2(n+r+1)  + 1 \right) &= 0 \qquad n \geq 0 \, .
+\end{align}
+Equations~\eqref{recursions 1}-\eqref{recursions 2}, along with the initial condition $a_0 = 1$ can be solved exactly and give
+\begin{align}
+	\label{a_n(r)}
+	a_n(r) = \frac{(-1)^n (2r+1) \big(r+3/2\big)_{n-1}}{2^{n+1}(r+3)(r-1)\big(r \big)_{n-1} \big(r+4\big)_{n-1}} \qquad n \geq 0 \, .
+\end{align}
+In particular, for $r=r_1=2$ this is
+\begin{align}
+	\label{a_n}
+	a_n = \frac{32}{\sqrt{\pi}}\frac{(-1)^n \Gamma(n+5/2)}{2^n \, \Gamma(n+1) \Gamma(n+5)} \qquad n \geq 0 \, ,
+\end{align}
+N.B. The Pochhammer symbol $(b)_c$ can be written as $\Gamma(b+c)/\Gamma(b)$. Now we turn back to the second linearly independent solution. Since the two solutions to the characteristic equation differ by an integer, we know that the second solution has the form
+\begin{align}
+	\label{second solution}
+	(x-1)^{-2} \sum_{n=0}^\infty b_n (x-1)^n + c(x-1)^2 \ln(x-1) \sum_{n=0}^\infty a_n (x-1)^n \, ,
+\end{align}
+with the constant $c$ to be determined. As a check for whether $c$ can immediately set to zero, we can attempt to evaluate~\eqref{a_n(r)} with $n = r_1 - r_2$ in the limit as $r \to r_2$. This limit does not exist, and therefore we must proceed with $c \neq 0$ when substituting~\eqref{second solution} into~\eqref{YM standard form}. Upon doing so, we find that $b_0$ is unconstrained and therefore can be set to $1$. Furthermore, we find that
+\begin{align}
+	b_0 &= 1, \quad  b_1 = b_0 / 16, \quad b_2 = -b_1 / 16, \quad b_3 = b_2 / 12, \quad c = -3 b_3 / 16 a_0 \\
+	0 &= b_{n+5}(n+5)(n+1) + b_{n+4}(n+5/2)/2 + c (a_n + 4a_{n+1}(n+3))/2 \qquad n \geq 0 \, ,
+\end{align}
+with $a_n$ given by \eqref{a_n}.
+
+
+Using Mathematica, we see that the eigenvalues of the operator are entirely real -- see figure~\ref{f: linear mathematica eigs}
+
+\begin{figure}
+	\centering
+	\begin{subfigure}[b]{0.45\textwidth}
+		\centering
+		\includegraphics[width=\textwidth]{"C:/Users/bradc/Documents/Bizon/Soliton Pseudospectrum/MathematicaEigenvalues.pdf"}
+		\caption{The first 20 eigenvalues of \eqref{YM self-adjoint} given by Mathematica.}
+		\label{f: linear mathematica eigs} 
+	\end{subfigure}
+	\hfill
+	\begin{subfigure}[b]{0.45\textwidth}
+		\centering
+		\includegraphics[width=\textwidth]{"C:/Users/bradc/Documents/Bizon/Soliton Pseudospectrum/CppEigenvalues.pdf"}
+		\caption{The first 20 eigenvalues from an $N=96$ discretization}
+		\label{f: linear cpp eigs}
+	\end{subfigure}
+	\caption{A comparison of the first 20 eigenvalues of the self-adjoint operator determined by different methods}
+	\label{f: eigs}
+\end{figure}
+
+A good test case is provided by the massless scalar field subject to the P\"{o}schl-Teller potential
+\begin{align}
+	V(\bar x) = V_0 \text{sech}^2(\bar x) \qquad \bar x \in (-\infty, \infty)
+\end{align}
+with the choice of Bizo\'n-Mach coordinates
+\begin{align}
+	\begin{aligned}
+		\tau &= \bar t - \ln(\cosh \bar x) \\
+		x &= \tanh \bar x
+	\end{aligned}
+\end{align}
+that maps $\bar x \to x \in [-1,1]$. After some rescaling, the wave equation reads
+\begin{align}
+	\left[ (1-x^2)\left(\p^2_\tau + 2x \p_\tau \p_x + \p_\tau + 2x \p_x - (1-x)^2 \p^2_x \right) + V(x) \right] \phi(x) = 0 \, ,
+\end{align}
+which, when $V_0 = 1$, can be written in the form of \eqref{spectral equation} 
+\begin{align}
+	L_1 &= \p_x \left( (1-x^2) \p_x \right) - 1 \, , \\
+	L_2 &= - (2x \p_x + 1) \, .
+\end{align}
+In the special case when $L$ is self-adjoint, $L_2 = 0$ and we recover a stable spectrum of purely real eigenvalues, shown in figure~\ref{f: self-adjoint}.
+
+\begin{figure}
+	\centering
+	\includegraphics[width=0.75\textwidth]{"C:/Users/bradc/Documents/Bizon/Soliton Pseudospectrum/SelfAdjointSpectrum"}
+	\caption{From Jaramillo: the spectrum of a self-adjoint operator.}
+	\label{f: self-adjoint}
+\end{figure}
+
+Finally, we wish to perform the time-reduction of \eqref{linear eom}. Defining $\p_u v = \psi$ and $\Phi = (v, \psi)^T$, we recover the spectral equation
+\begin{align}
+	%\label{spectral equation}
+	\p_u \Phi = L \Phi \qquad \text{where} \quad L = 
+	\begin{pmatrix}
+		0 & 1 \\
+		L_1 & L_2
+	\end{pmatrix}
+	\, .
+\end{align}
+with
+\begin{align}
+	\label{L1}
+	L_1 &= \frac{(1-x)^4}{4(1 - \beta^2)}\p_x^2 + \frac{x(x-1)^3}{2(1-\beta^2)(1+x)} \p_x \nonumber \\
+	& \qquad + \frac{1}{(1-\beta^2)}\left[\frac{(x+3)(x-1)^3}{16(1+x)^2} - \frac{(1-x)^2 ( x^4 - 4x^3 - 10x^2 + 28x + 1)}{\left(x^2 - 2x + 5 \right)^2} \right] \, ,\\
+	\label{L2}
+	L_2 &= \frac{\beta (1-x)^4}{2(1-\beta^2)} \p_x - \frac{\beta(1-x)}{(1-\beta^2)(1+x)} \, .
+\end{align}
+Note that the forms of \eqref{L1},~\eqref{L2} rely on the choices:
+\begin{itemize}
+	\item We have chosen $h' = \beta g'$ so that $\rho(x) = (x^2 - 1)(g'^2 - h'^2)$ is positive definite over $x\in(-1,1)$.
+	\item The form of $g(x)$ is chosen to be $g(x) = 2/ (1-x)$ so that $g(-1) = 1$ and $g(1) = \infty$.
+	\item In the original coordinates, the half-kink is $q(t,r) = q(r) = (r^2 - 1) / (r^2 + 1)$. Given the transformation in \eqref{coordinates}, this equates to $q(x) = (g^2 - 1) / (g^2 + 1)$.
+\end{itemize}
+However, these are not the only choices that satisfy the Sturm-Louiville conditions and compactified hyperboloidal coordinates. Are there better choices for these functions?
+
+
+We wish to examine the spectrum of the self-adjoint version of the YM soliton operator given by \eqref{spectral equation} with $L_2 = 0$ and the choices discussed at the end of the first section. That is, the operator
+\begin{align}
+	\label{YM self-adjoint}
+	L = \frac{(1-x)^4}{4} \p^2_x + \frac{x(x-1)^3}{2(1+x)} \p_x + (x-1)^3\left[ \frac{(x+3)}{16(x+1)^2} - \frac{(x^4-4x^3-10x^2+28x +1)}{(x-1)\left(x^2 - 2x + 5 \right)^2}\right] \, ,
+\end{align}
+modulo a factor of $(1-\beta^2)$. Let us solve the operator equation $L \phi(x) = \lambda \phi(x)$ by writing~\eqref{YM self-adjoint} in standard form:
+\begin{align}
+	\label{YM standard form}
+	\!\!\!\! \phi''(x) + \frac{2x \phi'(x)}{x^2 - 1} + \frac{4 \phi(x)}{x-1}\left[\frac{\lambda (\beta^2-1)}{(x-1)^3} + \frac{(x+3)}{16(x+1)^2} -  \frac{(x^4-4x^3-10x^2+28x +1)}{(x-1)\left(x^2 - 2x + 5 \right)^2} \right] \phi(x) = 0 \, .
+\end{align}
+We can see that there are second-order complex poles at $x = 1 \pm 2i$, a second-order real pole at $x=-1$, and a fourth-order real pole at $x=1$. Furthermore, $x=\infty$ gives a higher-order pole, however, this does not contribute since we are concerned only with $x \in [-1,1]$. We wish to construct a solution for $\phi(x)$ around the rank one regular singularity $x=1$ that will take the form
+\begin{align}
+	\label{regular singularity}
+	\phi(x) = e^{\sigma_j (x-1)}(x-1)^{\mu_j} \sum_{s=0}^\infty \frac{a^j_s}{(x-1)^s} \, ,
+\end{align}
+with $a_0 = 1$. To determine the $\sigma_j, \mu_j$, we expand the coefficient of $\phi'(x)$ in powers of $(x-1)^{-1}$
+\begin{align}
+	\label{f exp}
+	\sim \frac{1}{(x-1)}+ \frac{1}{2} - \frac{(x-1)}{4} + \mc{O}(x-1)^2 \, ,
+\end{align}
+and similarly the coefficient of $\phi(x)$
+\begin{align}
+	\label{g exp}
+	\sim 4\lambda \frac{  (\beta^2 - 1)}{(x-1)^4} - \frac{4}{(x-1)^2} + \frac{1}{4(x-1)} + \frac{93}{16} + \frac{(x-1)}{8} + \mc{O}(x-1)^2 \, .
+\end{align}
+We then solve the characteristic equation
+\begin{align}
+	\sigma^2 + F_0 \sigma + G_0 = 0
+\end{align}
+which gives $\sigma = -1/4 \pm i \sqrt{23}/2$. In this case, the value of $\mu_j$ is the same for both solutions:
+\begin{align}
+	\mu_j = -\frac{(f_1 \sigma_j + g_1)}{f_0 + 2\sigma_j} \quad \to \quad \mu_1 = \mu_2 = -1/2 \, .
+\end{align}
+Using the DLMF, we also have explicit expressions for the $a_s$ (since $\sigma^{(1)} = \overline{\sigma^{(2)}}$ and $\mu_1 = \mu_2$, we denote $\sigma = -1/4 \pm i \tilde \sigma$ and the two solutions as $a^\pm$):
+\begin{align}
+	\label{a_s}
+	\pm 2i \tilde \sigma s a^\pm_s = (s+1/2)(s-1/2)a^\pm_{s-1}+ \sum_{r=1}^s \left[(-1/4 \pm i \tilde \sigma) F_{r+1} + G_{r+1} - (s-r+1/2)F_r \right] a^\pm_{s-r} \, ,
+\end{align}
+where $F_r$ and $G_r$ come from the coefficient of the $(x-1)^{-r}$ term in \eqref{f exp} and \eqref{g exp}, respectively. Furthermore, we also have an expression for the large-$s$ behaviour of the two solutions, 
+\begin{align}
+	\label{a_s large}
+	a^\pm_s \sim \frac{\Lambda^\pm}{(2i\tilde \sigma)^s} \sum_{j=0}^\infty a_j^{\mp} (2i \tilde \sigma)^j \Gamma(s-j) \quad s \gg 1
+\end{align}
+where $\Lambda^\pm$ are constants. Note that the large-$s$ behaviour of one solutions depends on the small-$s$ behaviour of the other.
+
+Plugging in different values of $s$ into \eqref{a_s} gives us the first few coefficients in the series \eqref{regular singularity}, as well as a general expression
+\begin{align}
+	\label{recursion}
+	a^\pm_0 = 1 \qquad a^\pm_1 &= \pm \frac{17i}{8 \tilde \sigma} \qquad a^\pm_2 = \frac{25 a^\pm_1}{16 i \tilde \sigma} \qquad a^\pm_3 = \frac{41 a_2^\pm}{24i \tilde\sigma}+ \frac{2 \lambda (\beta^2 - 1)}{6i \tilde\sigma} \\
+	\pm 2i \tilde \sigma s a^\pm_s &= \left(s(s-1) + 21/4 \right)a_{s-1}^\pm + 4\lambda(\beta^2-1) a^\pm_{s-3} \quad n \geq 3 \, .
+\end{align}
+We can use these values in the expression for large-$s$ behaviour so show that
+\begin{align}
+	\label{large s}
+	a_s^\pm \sim& \frac{\Lambda^\pm \Gamma(s-3)}{(\pm 2i \tilde \sigma)^s} \Big[ s(s-1)(s-2) \mp \frac{17(s-1)(s-2)}{4} - \frac{17(25)(s-2)}{36} \pm 3 \left(\frac{25(17)(41)}{2\cdot 4^5 \tilde \sigma} + \lambda \tilde \sigma (\beta^2 - 1) \right) \nonumber \\
+	& \qquad + \sum_{k=4}^\infty \frac{(\mp2i \tilde\sigma)^{k-1}}{k} \frac{\Gamma(s-k)}{\Gamma(s-3)}\left((s(s-1) + \frac{21}{4}) a^\mp_{k-1} + 4\lambda(\beta^2-1) a^\mp_{k-3} \right)\Big] \, .
+\end{align}
+Examining \eqref{large s}, we can see that $\sum_s a_s^\pm$ is not convergent since the series does not truncate. To ensure uniform convergence of the series in \eqref{regular singularity}, we require that the values of $\lambda$ are such that the partial sum of $a^\pm_N$ is zero for all $N$.
+
+
+To determine the eigenvalues numerically, we discretize over $N$ Gauss-Chebyshev collocation points and use the prescribed expressions for the first and second derivative matrices. We then call the \texttt{Eigen::EigenSolver} package, which produces a vector of the (generally complex) eigenvalues.
+
+
+Using the interior abscissa, the integral of a function with respect to the weight $1/\sqrt{1-x^2}$ is given by
+\begin{align}
+	\label{Gauss-Chebyshev integral}
+	\int^1_{-1} \frac{g(x)}{\sqrt{1-x^2}} dx = \sum_{j=0}^{N-1} w_j g(x_j) \, , \quad \text{with } w_j = \frac{\pi}{N} \, .
+\end{align}
+Therefore, in order to evaluate the integral of the form
+\begin{align}
+	\label{product integral}
+	I_\mu (f,g) = \int^1_{-1} f(x) g(x) d \mu(x)
+\end{align}
+we combine the result of the integral approximation~\eqref{Gauss-Chebyshev integral} with the cardinal function representation~\eqref{psuedospectral} to see that $I_\mu(f,g) \approx \left( f_N \right)^T \cdot C_\mu \cdot g_N$ where the diagonal matrix $C_\mu$ is given by
+\begin{align}
+	\label{integral approx matrix}
+	\left( C_\mu \right)_{ii} = \frac{\pi \mu(x_i)}{N} \sqrt{1 - x_i^2}\sum_{k=1}^{N-1} C_i(x_k)
+\end{align}
+Using the form of \eqref{energy product}, we wish to write $\langle \Phi_1, \Phi_2 \rangle_E$ as a matrix operation using the Gram matrix~$G_E$
+\begin{align}
+	\langle \Phi_1, \Phi_2 \rangle_E = (v_1^*, \psi_1^*) \cdot
+	\begin{pmatrix}
+		G_E^{00} & G_E^{01} \\
+		G_E^{10} & G_E^{11}
+	\end{pmatrix}
+	\cdot 
+	\begin{pmatrix}
+		v_2 \\ \psi_2
+	\end{pmatrix}
+	= v_1^* G_E^{00} v_2 + v_1^* G_E^{01} \psi_2 + \psi_1^* G_E^{10} v_2 + \psi_1^* G_E^{11} \psi_2 \, .
+\end{align}
+Comparing this to \eqref{energy product}, we see that $G_E^{01} = G_E^{10} = 0$ and
+\begin{align}
+	G_E^{00} = \frac{1}{2} \mathbb{D}^T \cdot C_p \cdot \mathbb{D} \qquad G_E^{11} = \frac{1}{2} C_\rho
+\end{align}
+where $C_p$ ($C_\rho$) are the diagonal matrices that arise from approximating the integrals over $p(x)$ ($\rho(x)$), and $\mathbb{D}$ is the derivative matrix for the Chebyshev basis.
+
+
+Here we collect some general results for spectral methods using the Chebyshev polynomials as the basis functions. First, note that any function $f(x)$ can be approximated by a set of Chebyshev interpolants by evaluating $f(x)$ at a set of appropriate collocation points $x_j$ (i.e. the abscissa\footnote{In particular, we choose the Chebyshev-Lobatto collocation points.}) 
+\begin{align}
+	\label{collocations}
+	x_j = \cos \left( \frac{j\pi}{N} \right) , \quad j \in [0,\ldots,N] \, ,
+\end{align}
+and using the Chebyshev polynomials $T_j(x)$, the function at any $x$ is
+\begin{align}
+	\label{psuedospectral}
+	f(x) &\approx \frac{f_0}{2} + \sum_{j=1}^{N} f_j T_j(x) \, .
+\end{align}
+where the constants $f_j$ can be determined by projecting the function onto the basis of Chebyshev polynomials at the set of collocation points $x_i$:
+\begin{align}
+	f_j = \frac{2-\delta_{j, N}}{2N} \left[f(x_0) + (-1)^j f(x_N) + 2 \sum_{k=0}^{N-1}f(x_k)T_j(x_k) \right] \, .
+\end{align}
+Using this representation and the approximation of an integral as the weighted sum over the function values at the grid of Chebyshev collocation points, we can show that the integral over a generic function $F(x)$ expressed in the basis~\eqref{psuedospectral} is
+\begin{align}
+	\int^1_{-1} F(x) dx = c_0 + \sum^{\floor{N/2}}_{k=1}\frac{c_{2k}}{4k^2-1}, .
+\end{align}
+NB. $\floor{M}$ is the floor of the number $M$, i.e., the greatest integer less than or equal to $M$. Generalizing to the integral of the product of two functions with respect to the arbitrary weight $\mu(x) dx = d\mu$, 
+\begin{align}
+	\label{collocation integral}
+	\int^1_{-1} f(x)g(x)\, d\mu = f_N^T \cdot C^N_\mu \cdot g_N
+\end{align}
+where the vectors $f_N$, $g_N$ consist of the set of $N+1$ coefficients from the expansion of each function in the basis of Chebyshev polynomials as in~\eqref{psuedospectral}, and the $(N+1)\times(N+1$) matrix $C^N_\mu$ is a diagonal matrix with non-zero elements that depend on the value of the weight function at the collocation points:
+\begin{align}
+	\left(C^N_\mu\right)_{ii} = \frac{2\mu(x_i)}{\alpha_i N}\left(1 - \sum_{k=1}^{\floor{N/2}}\frac{(2-\delta_{2k, N})T_{2k}(x_i)}{4k^2-1} \right) \, ,
+\end{align}
+where $\alpha_i = 2$ if $i = 0, N$ and $\alpha_i = 1$ if $i \in \{1,\ldots,N-1\}$.
+
+
+where $\mathbb{D}_{ij}$ is an element of the derivative matrix
+\begin{align}
+	\mathbb D = \begin{cases}
+		\qquad \quad (1 + 2N^2) / 6 & i = j = 0 \\
+		\qquad \; -(1 + 2N^2) / 6 & i = j = N \\
+		\qquad - x_i / [2(1-x_i^2)] & i = j \neq \{0,N\} \\
+		(-1)^{i+j} \alpha_i / [\alpha_j (x_i - x_j)] & i \neq j
+	\end{cases} 
+\end{align}
+
+
+{\bf Interpolation matrix}\\
+
+
+However, it is important to note that the set of collocation points $\cos t_j$ are precisely the Lobatto grid set with the end points removed. Because the Sturm-Liouville functions $\rho(x)$ and $\gamma(x)$ are singular at the endpoints we have chosen to work with the roots grid when discretizing. The result is that when calculating the pseudospectrum, the operator $L$ is discretized with a different set of points than the energy inner product. To go between the two sets of grid points, we use Lagrange interpolation to determine the unique $N$-th order polynomial $P_N(x)$ that interpolates the set of $N$ data points $\{f(\bar x)\}$:
+\begin{align}
+	P_N(x) = \sum_{j=0}^{N} \ell_j(x) f(\bar x_j) \, ,
+\end{align}
+where
+\begin{align}
+	\ell_j(x) = \prod_{\substack{k = 0 \\ k \neq j}}^{N} \left(\frac{x - \bar x_k}{\bar x_j - \bar x_k} \right) \, .
+\end{align}
+We can use this interpolation method to express the output of the Clenshaw-Curtis quadrature in terms of the functions evaluated on the roots grid by defining the matrix $\ell$ so that
+\begin{align}
+	\begin{pmatrix}
+		\\
+		f(\cos t) \\
+		\\
+	\end{pmatrix}
+	= \begin{pmatrix}
+		\ell_{0\bar 0} & \ell_{0\bar 1} & \cdots & \ell_{0\bar N} \\
+		\vdots & \vdots & \ddots & \vdots \\
+		\ell_{N\bar 0} & \ell_{N\bar 1} & \cdots & \ell_{N\bar N}
+	\end{pmatrix}
+	\begin{pmatrix}
+		\\
+		f(\bar x) \\
+		\\
+	\end{pmatrix}	
+\end{align}
+where
+\begin{align}
+	\ell_{i \bar j} = \prod^N_{\substack{k = 0 \\ k \neq j}} \left( \frac{\cos(t_i) - \bar x_k}{\bar x_j - \bar x_k} \right) \, .
+\end{align}
+Therefore, to express the result of the integration of two functions $f(x)$, $g(x)$ via Clenshaw-Curtis quadrature on the Chebyshev roots grid, we write
+\begin{align}
+	\label{CC quad}
+	I = \int^1_{-1} f(x) g(x) dx \sim f^T(\bar x) \cdot \ell^T \cdot \begin{pmatrix}
+		w_1 & 0 & 0 & \ldots & 0 \\
+		0 & w_2 & 0 & \ldots & 0 \\
+		0 & 0 & w_3 & \ldots & 0 \\
+		\vdots & \vdots & \vdots & \ddots & \vdots \\
+		0 & 0 & 0 & \ldots & w_N
+	\end{pmatrix} \cdot \ell \cdot g(\bar x)
+\end{align}
+
+\section{Time-Reduced System for the YM Soliton}
+Following Jaramillo {\it et al.} (PRX 2021), the hyperboloidal compactification takes the
+original coordinates $(t,r)$ and relates them to the new coordinates $(u,x)$ via
+\begin{align}
+	\label{coordinates}
+	t = u - h(x) \qquad r = g(x)
+\end{align}
+with $h(x),\,g(x)$ to be determined. This means that the YM soliton equation 
+\begin{align}
+	\p^2_t f = \p^2_r f + \frac{1}{r} \p_r f + \frac{2}{r^2} f (1-f^2) \, ,
+\end{align}
+becomes
+\begin{align}
+	\left[ 1 - \left(\frac{h'}{g'}\right)^2 \right]\frac{\p^2 f}{\p u^2} = \frac{1}{g'}\p_x \left( \frac{1}{g'} \frac{\p f}{\p x} \right) + \frac{1}{g g'}\frac{\p f}{\p x} + \frac{2 h'}{\left(g'\right)^2} \frac{\p^2 f}{\p u \p x} + \frac{h'}{\left(g'\right)^2} \frac{\p f}{\p u} + \frac{h'}{g g'} \frac{\p f}{\p u} + \frac{2f}{g^2}(1-f^2) \, .
+\end{align}
+Next, we expand around the half-kink solution, $q(x)$, via $f(u,x) = q(x) + c(x)\phi(u,x)$, where $c(x)$ is a rescaling of the perturbation that we can set at a later time. Linearizing the resulting equation gives
+\begin{align}
+	\label{linear eom}
+	\left( g'^2 - h'^2 \right) \frac{\p^2 \phi}{\p u^2} & - 2h' \frac{\p^2 \phi}{\p u \p x} - \left[ h'' + h' \left(\frac{2c'}{c} - \frac{g''}{g'} + \frac{g'}{g} \right) \right] \frac{\p \phi}{\p u} = \frac{\p^2 \phi}{\p x^2} + \left[ \frac{2c'}{c} - \frac{g''}{g'} + \frac{g'}{g} \right] \frac{\p \phi}{\p x} \nonumber \\
+	&+ \left[ \frac{c'}{c}\left(\frac{g'}{g} - \frac{g''}{g'} \right) + \frac{c''}{c} + \frac{2 g'^2}{g^2}(1-3q^2)\right] \phi \, .
+\end{align}
+After dividing through by $(g'^2 - h'^2)$, and defining $\psi = \p_u \phi$, the right-hand side of \eqref{linear eom} becomes the operator $L_1$ of equation (11) in Jaramillo. In order for the spectral problem to be well-defined, we need to write $L_1$ as a Sturm-Louiville operator. This can be done by recasting the generic operator $L$ given by
+\begin{align}
+	\label{general operator}
+	L = - \sigma(x) D^2 - \tau(x) D + V(x)
+\end{align}
+as
+\begin{align}
+	\label{SL operator}
+	L = \frac{1}{\rho(x)}\left(-\frac{d}{dx}\left(p(x)\frac{d}{dx}\right) + Q(x) \right) ,
+\end{align}
+where $\rho(x)$ solves
+\begin{align}
+	(\sigma \rho)' = \tau \rho \qquad \text{with} \quad \sigma \rho = p \big|_{x=1} = p \big|_{x=-1} = 0 \, .
+\end{align}
+One choice that satisfies this condition is $p(x) = 1 - x^2$. By comparing the form of \eqref{general operator} to the form of $L_1$ in \eqref{linear eom}, we see that
+\begin{align}
+	\label{rho}
+	\rho = \frac{1-x^2}{\sigma} = (1-x^2)(h'^2-g'^2) \, .
+\end{align}
+Furthermore, we are free to choose the rescaling factor $c(x)$ to satisfy
+\begin{align}
+	p'= \tau \rho \quad \Rightarrow \quad \frac{2c'}{c}- \frac{g''}{g'} + \frac{g'}{g} = \frac{2x}{x^2-1}
+\end{align}
+which is solved by
+\begin{align}
+	\frac{c}{c_0} = \sqrt{\frac{g' (1-x^2)}{g}}
+\end{align}
+with $c_0$ as an undetermined constant. With this general rescaling, we can also show that $Q(x)$ in~\eqref{SL operator} is
+\begin{align}
+	\label{Q}
+	Q = \frac{1}{1-x^2} - (1-x^2) \left[\frac{1}{4}\left( \frac{g'}{g}\right)^2 - \frac{1}{4}\left(\frac{g''}{g'}\right)^2 + \frac{1}{4}\frac{g'}{g''}\p_x \left[ \left( \frac{g''}{g'}\right)^2 \right] + \frac{2 g'^2}{g^2}(1-3q^2) \right] \, .
+\end{align}
+
+The Sturm-Liouville formulation also places restrictions on the allowed choices of compactification. Since $\rho(x)$ is the weight in the inner product of solutions to the Sturm-Liouville equation $L \varphi = E \varphi$: 
+\begin{align}
+	\langle \varphi_1(x), \varphi_2(x) \rangle = \int^1_{-1} \varphi_1^*(x) \varphi_2(x) \rho(x) dx \, ,
+\end{align}
+in order for $|\langle \varphi_1, \varphi_1 \rangle| > 0$, we require $\rho(x)$ to be positive definite for $x \in (-1,1)$. This, along with the requirement that $u \to$~\scri~as $r \to \infty$, sets conditions on the allowed forms of $g(x)$ and $h(x)$.
+
+Using these definitions, the right-hand side of \eqref{linear eom} is the desired Sturm-Liouville operator $L_1$ acting on the perturbation
+\begin{align}
+	\label{L1}
+	L_1 \phi = \frac{1}{\rho} \left[- \p_x(p \, \p_x) + Q \right] \phi \, .
+\end{align}
+By defining $\psi(u,x) \equiv \p_u \phi(u,x)$ we can write the left-hand side of \eqref{linear eom} in terms of a second Sturm-Liouville operator, $L_2$, 
+\begin{align}
+	\p_u \psi - \frac{1}{\rho}\left[ 2(x^2-1) h' \p_x + \p_x\left((x^2-1) h'\right) \right] \psi \equiv \p_u \psi - L_2 \psi
+\end{align}
+where
+\begin{align}
+	\label{L2}
+	L_2 = \frac{1}{\rho} \left[2\gamma \p_x + \p_x \gamma \right], \qquad \gamma(x) = (x^2-1)h' \, .
+\end{align}
+Finally, the linearized equation for perturbations around the static kink can be written as
+\begin{align}
+	\label{operator eom}
+	\p_u \psi = L_2 \psi + L_1 \phi \, .
+\end{align}
+Defining the vector $\Phi = (\phi, \psi)^T$, the system can be written in the time-reduced form
+\begin{align}
+	\label{time reduced}
+	\p_u \Phi = i L \Phi \qquad \text{where} \quad L = -i
+	\begin{pmatrix}
+		0 & 1 \\
+		L_1 & L_2
+	\end{pmatrix}
+	\, .
+\end{align}
+with $L_1$ given in~\eqref{L1} and $L_2$ given in~\eqref{L2}. Taking the ansatz $\Phi(u,x)=\Phi(x)e^{i\omega u}$ gives the spectral problem
+\begin{align}
+	\label{spectral equation}
+	\begin{pmatrix}
+		0 & 1 \\
+		L_1 & L_2
+	\end{pmatrix}
+	\begin{pmatrix}
+		\phi \\ \psi
+	\end{pmatrix}
+	=
+	i \omega
+	\begin{pmatrix}
+		\phi \\ \psi
+	\end{pmatrix} \, .
+\end{align}
+
+	
+Proceeding further, we are interested in the choice of hyperboloidal compactification with
+\begin{align}
+	\label{compact 1}
+	g(x) = r(x) = \frac{2}{1-x} \qquad h(x) = \ln \left( \cosh \left( \frac{x+1}{x-1}\right)\right),
+\end{align}
+which maps $r \in [1,\infty) \to x \in [1,-1]$ as well as maintaining the approach to \scri. With this change of coordinates, the Sturm-Liouville functions are
+\begin{alignat}{2}
+	\sigma(x) &= \frac{(x-1)^4}{4} \cosh^2 \left( \frac{x+1}{x-1} \right) &\quad \rho(x) = \frac{4(x+1)}{(x-1)^4} \, \text{sech}^2 \left( \frac{x+1}{x-1} \right) \\
+	Q(x) &= \frac{1}{1-x^2} + \frac{(x+1)}{(x-1)}\left(\frac{9}{4} - 6q^2 \right) &\quad  \gamma(x) = - \frac{2(x+1)}{x-1} \, \tanh \left(\frac{x+1}{x-1} \right)
+\end{alignat}
+
+	Following , the hyperboloidal compactification takes the
+original coordinates $(t,r)$ and relates them to the new coordinates $(u,x)$ via
+
+with $h(x),\,g(x)$ to be determined. This means that the YM soliton equation 
+\begin{align}
+	\p^2_t f = \p^2_r f + \frac{1}{r} \p_r f + \frac{2}{r^2} f (1-f^2) \, ,
+\end{align}
+becomes
+\begin{align}
+	\left[ 1 - \left(\frac{h'}{g'}\right)^2 \right]\frac{\p^2 f}{\p u^2} = \frac{1}{g'}\p_x \left( \frac{1}{g'} \frac{\p f}{\p x} \right) + \frac{1}{g g'}\frac{\p f}{\p x} + \frac{2 h'}{\left(g'\right)^2} \frac{\p^2 f}{\p  u \p x} + \frac{1}{g'} \p_x \left( \frac{h'}{g'} \right)\frac{\p f}{\p u} + \frac{h'}{g g'} \frac{\p f}{\p u} +  \frac{2f}{g^2}(1-f^2) \, .
+\end{align}
+Next, we expand around the half-kink solution, $q(x)$, via $f(u,x) = q(x) + \phi(u,x)$ and discard terms $\mc{O}(\phi^2)$ or greater:
+\begin{align}
+	\label{linear eom}
+	\left( g'^2 - h'^2 \right) \frac{\p^2 \phi}{\p u^2} & - 2h' \frac{\p^2 \phi}{\p u \p x} - \left[ h'' + h' \left( \frac{g'}{g} - \frac{g''}{g'} \right) \right] \frac{\p \phi}{\p u} = \frac{\p^2 \phi}{\p x^2} + \left[\frac{g'}{g} - \frac{g''}{g'} \right] \frac{\p \phi}{\p x} + \frac{2 g'^2}{g^2}(1-3q^2) \phi \, .
+\end{align}
+After dividing through by $(g'^2 - h'^2)$, and defining $\psi = \p_u \phi$, the right-hand side of \eqref{linear eom} becomes the operator $L_1$ of equation (11) in Jaramillo. 
+
+
+In order for the spectral problem to be well-defined, we need to write $L_1$ as a Sturm-Louiville operator. This can be done by equating the coefficients of the derivatives from the general form of $L$ to those appearing in the right-hand side of \eqref{linear eom}
+\begin{align}
+	\label{SL operator}
+	L = \frac{1}{\rho(x)}\left(\frac{d}{dx}\left(p(x)\frac{d}{dx}\right) + Q(x) \right) \, .
+\end{align}
+This gives two equations
+\begin{align}
+	\frac{p}{\rho} = \frac{1}{g'^2-h'^2} \qquad \text{and} \qquad \frac{p'}{\rho} = \frac{1}{g'^2-h'^2}\left[ \frac{2c'}{c} -  \frac{g''}{g'} + \frac{g'}{g} \right]
+\end{align}
+that we can use to determine $\rho$ and $p$. Substituting the first equation into the second, we obtain an expression for the rescaling factor
+\begin{align}
+	\frac{c}{c_0} = \sqrt{\frac{p g'}{g}} \, ,
+\end{align}
+where $c_0 \in \mathbb{R}$ is a constant. The Sturm-Liouville formulation places restrictions on the allowed choices of the functions $\rho$ and $p$. In particular, since $\rho(x)$ is the weight in the inner product of solutions to the Sturm-Liouville equation $L \varphi = E \varphi$,
+\begin{align}
+	\langle \varphi_1(x), \varphi_2(x) \rangle = \int^1_{-1} \varphi_1^*(x) \varphi_2(x) \rho(x) dx \, ,
+\end{align}
+then in order for $|\langle \varphi_1, \varphi_1 \rangle| > 0$, we require $\rho(x)$ to be positive definite for $x \in (-1,1)$. Furthermore, $p$ must vanish on the ends of the interval, i.e. ${p(a)=p(b)=0}$. When considering the compactification functions $g(x),~h(x)$ we must also keep in mind restrictions on the Sturm-Louiville functions $\rho,~p$.
+\section{(Pseudo)Spectrum of the Linearized Kink}
+
+Now we wish to determine the spectrum and pseudospectrum of the linearized kink by solving the spectral problem~\eqref{spectral equation} with the forms for $L_1$ and $L_2$ given by~\eqref{L1},~\eqref{L2}, respectively. To do so, we discretize the operator in the basis of Chebyshev functions (see~\S\ref{s: spectral methods} for details). Note that we may choose either the Chebyshev-Lobatto collocation points -- those that include the endpoints $x=\pm 1$ -- or the Chebyshev-Gauss collocation points, which exclude the endpoints. While the choice of abscissa does not affect the result in theory, in practice we can see that some of the Sturm-Liouville functions are singular at the endpoints\footnote{Note that finiteness and invertibility only applies in the open interval $x \in (-1,1)$ for the Sturm-Liouville operators.}. To avoid difficulties in the eigenvalue solving algorithm due to these singularities, we choose to use the Chebyshev-Gauss abscissa and thereby exclude these points.
+
+Recall that the operator $L$ is written in terms of the Sturm-Louiville functions ${\rho,~p,~Q,~\text{and}~\gamma}$, each of which depend on the choice of compactification functions $g(x),~h(x)$. Therefore, to proceed in calculating the pseudospectrum we must specify a compactification and ensure that the restrictions on the secondary functions remain satisfied. In particular:
+\begin{itemize}
+	\item $g(x)$ maps $r\in [1,\infty)$ to $x \in [a,b]$.
+	\item $h(x)$ is chosen so that $u=t-h(x)$ is spacelike at $r = 1$ and null at $u =$~\scri.\footnote{Since the hyperboloidal path has normal $n_\mu = -\alpha \nabla_\mu u = -\alpha \langle 1, -h'(r) \rangle$, it has geodesic length $\varepsilon = n^\mu n_\mu \propto (h'(r))^2 - 1$. Thus, the choice of $h(r)$ must obey $\lim_{r\to \infty} h'(r) = \pm 1$ and $\lim_{r\to 1} h'(r) = 0$.}
+	\item $\rho(x)$ is positive-definite on $x\in (a,b)$.
+	\item $p(x)$ satisfies $p(a) = p(b) = 0$.  
+\end{itemize}
+One such hyperboloidal compactification is the choice
+\begin{align}
+	\label{kink compactification}
+	\begin{dcases}
+		h(x) = \ln \left( \frac{2}{1-x} \right) - \frac{2}{1-x} \\
+		g(x) = \frac{2}{1-x}
+	\end{dcases}
+\end{align}
+from which the forms of the other functions are normally directly calculated. However, because of the introduction of the rescaling function $c(x)$ we are left with an additional Sturm-Louiville function that needs to be specified -- we choose this to be $p(x)$. By specifying the form $p(x) = 1 -x^2$ we ensure that the boundary conditions $p(\pm 1) = 0$ are satisfied by design. This could also be accomplished without the addition of a rescaling function; however, this method would require extensive checking of different compactifications for compatibility with the criteria listed above. 
+
+Under the compactification specified in~\eqref{kink compactification} as well as choosing $p(x) = 1 - x^2$, we can see that
+\begin{align}
+	c(x) &= c_0 \sqrt{\frac{p g'}{g}} = c_0 \left( 1+ x \right)^{1/2} \\
+	\rho(x) &= \frac{(1 + x)(3 + x)}{(1-x)^2} \\
+	\gamma(x) &= x + 3 + \frac{4}{x-1} \\
+	Q(x) &= \frac{24 q^2 (x + 1)^2 - 9x^2 - 18x - 5}{4(x^2 - 1)}
+\end{align}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
