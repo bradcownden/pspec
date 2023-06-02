@@ -1,0 +1,7 @@
+spectral_N=25
+xgrid_min=-.5
+xgrid_max=0.5
+ygrid_min=-1.0
+ygrid_max=1.55
+p_gridx=5
+p_gridy=5
