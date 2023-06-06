@@ -1,3 +1,7 @@
+#=
+# Use GPU acceleration to evaluate the entire pseudospectrum at once 
+=#
+__precompile__()
 module gpusvd
 export sigma
     using ProgressMeter
@@ -12,18 +16,25 @@ export sigma
         ndim = size(Z)[1] # number of shifted matrices
         Ndim = size(L)[1] # square size of each shifted matrix
 
+        #= 
         # To maximize GPU acceleration, build a large diagonal matrix made of
         # all the shifted matrices. Send this large diagonal matrix to the GPU
         # and perform SVD, returning the singular values. For each block that is
         # returned, find the minimum singular value and store in the corresponding
         # entry of sigma
+        =#
 
         # Total number of matrices: one matrix for every value in Z, each matrix is 
         # the size of L
+        # Include progress bar for long calculations
+        p = Progress(length(Z), dt=0.1, desc="Computing pseudospectrum...", 
+        barglyphs=BarGlyphs("[=> ]"), barlen=50)
         Dmatrix = Vector{Matrix}(undef, length(Z))
         ThreadsX.foreach(Iterators.product(1:ndim, 1:ndim)) do (i,j)
             Dmatrix[(i - 1) * ndim + j] = L - Z[i,j] .* I
+            next!(p)
         end
+        finish!(p)
         # Turn into one large block-diagonal and apply svdvals 
         vals = svdvals(Diagonal(Dmatrix))
         # Find the minimum singular value from each block and rearrange
@@ -57,5 +68,4 @@ export sigma
         finish!(p)
         =#
     end
-    precompile(sigma, (Matrix, Matrix))
 end

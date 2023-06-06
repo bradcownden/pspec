@@ -9,8 +9,9 @@ using ProgressMeter
 using Parameters
 using DelimitedFiles
 
-include("./gpusvd.jl")
-using .gpusvd
+include("./gpusvd.jl") 
+include("./quad.jl")
+using .gpusvd, .quad
 
 #######################################################
 #= Psuedospectrum calculation leveraging parallelism =#
@@ -68,7 +69,7 @@ end
 
 
 function writeData(inpts::Inputs, data::Vector)::Nothing
-    open("jEigenvals_N" * string(inpts.N) * ".txt", "w") do io
+    open("jEigenvals_N" * string(inpts.N) * "P" * string(P) * ".txt", "w") do io
         writedlm(io, length(data))
         # Caution: \t character automatically added to file between real and imaginary parts
         writedlm(io, hcat(real.(data), imag.(data)))
@@ -77,7 +78,7 @@ function writeData(inpts::Inputs, data::Vector)::Nothing
 end
 
 function writeData(inpts::Inputs, data::Matrix)::Nothing
-    open("jpspec_N" * string(inpts.N) * ".txt", "w") do io
+    open("jpspec_N" * string(inpts.N) * "P" * string(P) * ".txt", "w") do io
         writedlm(io, adjoint([inpts.xmin, inpts.xmax, inpts.ymin, inpts.ymax, inpts.xgrid]))
         writedlm(io, hcat(size(data)))
         writedlm(io, data)
@@ -397,7 +398,7 @@ vals = ThreadsX.sort!(GenericLinearAlgebra.eigvals(BigL), alg=ThreadsX.StableQui
 print("Done! Eigenvalues = "); show(vals); println("")
 
 # Write eigenvalues to file
-writeData(inputs, vals)
+#writeData(inputs, vals)
 
 
 ##################################
@@ -409,10 +410,15 @@ grid = inputs.xgrid
 Z = make_Z(inputs.xmin,inputs.xmax,inputs.ymin,inputs.ymax,grid)
 #Z = BF_make_Z(xmin,xmax,ymin,ymax,grid)
 
+# Construct the Gram matrices
+qout = quad.quadrature(p, x)
+print("Quadrature of Sturm-Louiville function p: "); show(qout); println("")
+
+
 # Calculate the sigma matrix
 println("Calculating the psuedospectrum...")
-sig = gpusvd.sigma(Z, BigL)
-print("Done! External sigma: "); show(sig); println("")
+#sig = gpusvd.sigma(Z, BigL)
+#print("Done! External sigma: "); show(sig); println("")
 if P > 0
     sig = BF_sigma(Z, BigL)
 else
@@ -421,7 +427,7 @@ end
 print("Done! Internal sigma: "); show(sig); println("")
 
 # Write Psuedospectrum to file
-writeData(inputs, sig)
+#writeData(inputs, sig)
 
 #print("D = "); show(D); println("")
 #print("DD = "); show(DD); println("")
