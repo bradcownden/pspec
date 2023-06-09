@@ -4,9 +4,10 @@
 =#
 __precompile__()
 module quad
-export quadrature
+export Gram
     using LinearAlgebra
     using ThreadsX
+    using BlockArrays
     # Takes a function f which it itself a function of an input array and an index
     # Array input is for data type consistancy
     function quadrature(f, x::Vector)::Matrix
@@ -27,5 +28,16 @@ export quadrature
         foo = Vector{eltype(x)}(undef,length(x))
         ThreadsX.map!(i->wts[i]* f(cos.(tquad), i), foo, 1:length(foo))
         return reshape(Diagonal(foo), (length(x), length(x)))
+    end
+    # Use quadrature to construct Gram matrices an inverses
+    # Functions w, p, q are from Sturm Louiville operators and are themselves functions
+    # that take an array of points and an index. D is the derivative matrix from
+    # Chebyshev discretization
+    function Gram(w, p, q, D::Matrix, x::Vector)
+        # Construct via reshaping of diagonal blocks
+        G1 = reduce(hcat, [Transpose(D) * (0.5 .* quadrature(p, x)) * D + 0.5 .* quadrature(q, x), zeros(eltype(x), (length(x), length(x)))])
+        G2 = reduce(hcat, [zeros(eltype(x), (length(x), length(x))), 0.5 .* quadrature(w, x)])
+        G = vcat(G1, G2)
+    return G, inv(G)
     end
 end

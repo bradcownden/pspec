@@ -13,6 +13,9 @@ include("./gpusvd.jl")
 include("./quad.jl")
 using .gpusvd, .quad
 
+# Debug
+const debug = 0
+
 #######################################################
 #= Psuedospectrum calculation leveraging parallelism =#
 #######################################################
@@ -48,10 +51,21 @@ function readInputs(f::String)::Inputs
     for k in collect(keys(data)) 
         if k == "spectral_N" 
             inpts.N = parse(Int64, get(data, k,nothing))
+            if inpts.N < 4
+                println("WARNING: number of spectral modes must be N > 3. " *
+                "Defaulting to N = 4.")
+                inpts.N = 4
+            end
         elseif k == "p_gridx" 
             inpts.xgrid = parse(Int64, get(data, k,nothing))
+            if inpts.xgrid < 1
+                inpts.xgrid = 1
+            end
         elseif k == "p_gridy"
-            inpts. ygrid = parse(Int64, get(data, k, nothing))
+            inpts.ygrid = parse(Int64, get(data, k, nothing))
+            if inpts.ygrid < 1
+                inpts.ygrid = 1
+            end
         elseif k == "xgrid_min"
             inpts.xmin = parse(Float64, get(data, k, nothing))
         elseif k == "xgrid_max"
@@ -332,6 +346,25 @@ function BF_sigma(Z::Matrix, L::Matrix)::Matrix{BigFloat}
     finish!(p)
 end
     
+function serial_sigma(G::Matrix, Ginv::Matrix, Z::Matrix, L::Matrix)
+    foo = similar(Z)
+     # Include progress bar for long calculations
+     p = Progress(length(Z), dt=0.1, desc="Computing pseudospectrum...", 
+     barglyphs=BarGlyphs("[=> ]"), barlen=50)
+     for i in 1:size(Z)[1]
+        for j in 1:size(Z)[2]
+            # Calculate the shifted matrix
+            Lshift = L - Z[i,j] .* I
+            # Calculate the adjoint
+            Lshift_adj = Ginv * adjoint(Lshift) * G
+            # Calculate the pseudospectrum
+            foo[i,j] = minimum(GenericLinearAlgebra.svdvals(Lshift_adj * Lshift))
+            next!(p)
+        end
+    end
+    return foo
+    finish!(p)
+end
 
 ##########
 #= Main =#
@@ -379,12 +412,6 @@ else
     LL = L2(x,D)
 end
 
-#@btime basis(N)
-#@btime make_D(x,N)
-#@btime make_DD(x,N,D)
-#@btime L1(x,D,DD)
-#@btime L2(x,D,DD)
-
 # Stack the matrices
 Lupper = reduce(hcat, [zeros(eltype(x), (N,N)), Matrix{Complex{eltype(x)}}(I,N,N)]) # Match the data type of the collocation array
 Llower = reduce(hcat, [L, LL])
@@ -392,13 +419,12 @@ BigL = vcat(Lupper, Llower)
 BigL = BigL .* -1im # Automatic type matching
 
 # Find the eigenvalues
-#vals = eigvals(Matrix{ComplexF64}(BigL))
-println("Calculating eigenvalues...")
+println("Computing eigenvalues...")
 vals = ThreadsX.sort!(GenericLinearAlgebra.eigvals(BigL), alg=ThreadsX.StableQuickSort, by = abs)
 print("Done! Eigenvalues = "); show(vals); println("")
 
 # Write eigenvalues to file
-#writeData(inputs, vals)
+writeData(inputs, vals)
 
 
 ##################################
@@ -410,30 +436,52 @@ grid = inputs.xgrid
 Z = make_Z(inputs.xmin,inputs.xmax,inputs.ymin,inputs.ymax,grid)
 #Z = BF_make_Z(xmin,xmax,ymin,ymax,grid)
 
-# Construct the Gram matrices
-qout = quad.quadrature(p, x)
-print("Quadrature of Sturm-Louiville function p: "); show(qout); println("")
+# Debug
+if debug > 0
+    print("Collocation points = "); show(x); println("")
+    print("D = "); show(D); println("")
+    print("DD = "); show(DD); println("")
+    print("L1 = "); show(L); println("")
+    print("L2 = "); show(LL); println("")
+    print("L = "); show(BigL); println("")
+    print("Z = "); show(Z); println("")
+end
 
+# Construct the Gram matrices
+G, Ginv = quad.Gram(w, p, V, D, x)
+
+# Debug/timing
+if debug > 0
+    print("Ginv * G = I: "); println(isapprox(Ginv * G, I))
+    # Serial Timing
+    println("Timing for serial sigma:")
+    @btime serial_sigma(G, Ginv, Z, BigL)
+    # Large, block matrix
+    println("Timing for gpusvd.sigma:")
+    @btime gpusvd.sigma(G, Ginv, Z, BigL)
+    # Threaded over individual shifted matrices
+    println("Timing for gpusvd.pspec:")
+    @btime gpusvd.pspec(G, Ginv, Z, BigL)
+end
 
 # Calculate the sigma matrix
-println("Calculating the psuedospectrum...")
-#sig = gpusvd.sigma(Z, BigL)
-#print("Done! External sigma: "); show(sig); println("")
+println("Computing the psuedospectrum...")
 if P > 0
     sig = BF_sigma(Z, BigL)
 else
-    sig = sigma(Z, BigL)
+    sig = gpusvd.pspec(G, Ginv, Z, BigL)
 end
-print("Done! Internal sigma: "); show(sig); println("")
+
+# Debug
+if debug > 0
+    ssig = serial_sigma(G, Ginv, Z, BigL)
+    print("Parallel/Serial calculation match: "); println(isapprox(ssig, sig))
+end
+
+print("Done! Sigma = "); show(sig); println("")
 
 # Write Psuedospectrum to file
-#writeData(inputs, sig)
+writeData(inputs, sig)
 
-#print("D = "); show(D); println("")
-#print("DD = "); show(DD); println("")
-#print("L1 = "); show(L); println("")
-#print("L2 = "); show(LL); println("")
-#print("L = "); show(BigL); println("")
-#print("Z = "); show(Z); println("")
 
 
