@@ -15,7 +15,7 @@ export Gram
         tquad = Vector{eltype(x)}(undef, length(x))
         ThreadsX.map!(i-> 0.5 * pi * (2*i - 1) / length(x), tquad,1:length(x))
         # Quadrature weights
-        Nfl = Int(floor(length(x))/2)
+        Nfl = trunc(Int, floor(length(x))/2)
         wts = Vector{eltype(x)}(undef, length(x))
         sums = Vector{eltype(x)}(undef, length(x))
         # Use the identity T_n(cos x) = cos(n x) to simplify the calculation of weights
