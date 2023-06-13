@@ -6,3 +6,4 @@ jpspec*.txt
 *.out
 *.synctex.gz
 *.aux
+*.log
