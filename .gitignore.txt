@@ -4,5 +4,5 @@ jpspec*.txt
 
 # Ignore LaTeX auxillary files
 *.out
-*.synctex
+*.synctex.gz
 *.aux
