@@ -7,11 +7,11 @@ using GenericLinearAlgebra
 using ProgressMeter
 using Parameters
 using Distributed
-using LinearAlgebra
+@everywhere using LinearAlgebra
 
-include("./gpusvd.jl") 
+@everywhere include("./gpusvd.jl") 
 include("./quad.jl")
-using .gpusvd, .quad
+@everywhere import .gpusvd, .quad
 
 # Debug
 const debug = 1
@@ -247,32 +247,32 @@ end
 #= Sturm-Louiville functions =#
 ###############################
 
-function s(x::Array, i::Integer)::BigFloat
+function s(x::Array, i::Integer)
     return sqrt(1 - x[i]^2)
 end
 
-function w(x::Array, i::Integer)::BigFloat 
+function w(x::Array, i::Integer)
     return x[i]
 end
 
-function p(x::Array, i::Integer)::BigFloat
+function p(x::Array, i::Integer)
     return (x[i]-1)^2 * (x[i] + 1) * (3 - x[i] + 2 * s(x,i))
 end
 
-function pp(x::Array, i::Integer)::BigFloat
+function pp(x::Array, i::Integer)
     return (x[i] - 1) * (1 + 2 * x[i]) * (3 - x[i] + 2 * s(x,i))
 end
 
-function gamma(x::Array, i::Integer)::BigFloat
+function gamma(x::Array, i::Integer)
     return (1 + x[i] + s(x,i)) * (3 - x[i] + 2 * s(x,i)) /
     sqrt((-3 + x[i] - 2 * s(x,i))/(x[i]-1))
 end
 
-function gammap(x::Array, i::Integer)::BigFloat
+function gammap(x::Array, i::Integer)
     return 1 / sqrt((-3 + x[i] - 2 * s(x,i))/(x[i]-1))
 end
 
-function V(x::Array, i::Integer)::BigFloat
+function V(x::Array, i::Integer)
     return 3 * (1 - 4 * s(x,i) + x[i] * (34 - 15 * x[i] + 44 * s(x,i))) /
     (8 * (1 + s(x,i)) * (3 - x[i] + 2 * s(x,i)))
 end
@@ -281,16 +281,16 @@ end
 #= Psuedospectrum functions =#
 ##############################
 
-function make_Z(xmin, xmax, ymin, ymax, Nsteps::Integer)::Matrix{ComplexF64}
-    xvals = Vector{Float64}(undef, Nsteps+1)
-    yvals = Vector{Float64}(undef, Nsteps+1)
+function make_Z(xmin, xmax, ymin, ymax, Nsteps::Integer)
+    xvals = Vector{eltype(xmin)}(undef, Nsteps+1)
+    yvals = Vector{eltype(xmin)}(undef, Nsteps+1)
     dx = (xmax - xmin)/Nsteps
     dy = (ymax - ymin)/Nsteps
     # Construct vectors of displacements
     ThreadsX.map!(i->xmin + i*dx,xvals,0:Nsteps)
     ThreadsX.map!(i->ymin + i*dy,yvals,0:Nsteps)
     # Meshgrid matrix
-    foo = Matrix{ComplexF64}(undef, (Nsteps+1, Nsteps+1))
+    foo = Matrix{Complex}(undef, (Nsteps+1, Nsteps+1))
     # Automatic load balancing, false sharing protection
     ThreadsX.foreach(Iterators.product(1:size(foo)[1], 1:size(foo)[2])) do (i,j) # Index i is incremented first
         foo[i,j] = xvals[i] + yvals[j]*1im
@@ -298,7 +298,7 @@ function make_Z(xmin, xmax, ymin, ymax, Nsteps::Integer)::Matrix{ComplexF64}
     return foo
 end
 
-function sigma(Z::Matrix{ComplexF64}, L::Matrix{ComplexF64})::Matrix{Float64}
+function sigma(Z::Matrix, L::Matrix)
     # Distribute a shifted matrix and find the smallest singular values
     foo = similar(Z)
     # Automatic load balancing, false sharing protection
@@ -364,6 +364,27 @@ function serial_sigma(G::Matrix, Ginv::Matrix, Z::Matrix, L::Matrix)
     end
     return foo
     finish!(p)
+end
+
+################################
+#= Distributed pseudospectrum =#
+################################
+
+# Requires workers to have already been spawned
+@everywhere function pspec(G::Matrix, Ginv::Matrix, Z::Matrix, L::Matrix)
+    if nprocs() > 1
+        # Calculate all the shifted matrices
+        ndim = size(Z)[1]
+        foo = pmap(i -> (L - Z[i] .* LinearAlgebra.I), eachindex(Z))
+        # Apply svd to (Lshift)^\dagger Lshift
+        bar = pmap(x -> (Ginv * adjoint(x) * G) * x, foo)
+        sig = pmap(svdvals, bar)
+        # Reshape and return sigma
+        return reshape(minimum.(sig), (ndim, ndim))
+    else
+        println("No workers have been spawned");
+        return 1
+    end 
 end
 
 ##########
@@ -437,7 +458,7 @@ Z = make_Z(inputs.xmin,inputs.xmax,inputs.ymin,inputs.ymax,grid)
 #Z = BF_make_Z(xmin,xmax,ymin,ymax,grid)
 
 # Debug
-if debug > 0
+if debug > 2
     print("Collocation points = "); show(x); println("")
     print("D = "); show(D); println("")
     print("DD = "); show(DD); println("")
@@ -460,24 +481,28 @@ if debug > 0
     print("Ginv * G = I: "); println(isapprox(Ginv * G, I))
     # Serial Timing
     println("Timing for serial sigma:")
-    #@btime serial_sigma(G, Ginv, Z, BigL)
+    @btime serial_sigma(G, Ginv, Z, BigL)
     # Large, block matrix
     println("Timing for gpusvd.sigma:")
-    #@btime gpusvd.sigma(G, Ginv, Z, BigL)
+    @btime gpusvd.sigma(G, Ginv, Z, BigL)
     # Threaded over individual shifted matrices
     println("Timing for gpusvd.pspec:")
-    #@btime gpusvd.pspec(G, Ginv, Z, BigL)
+    @btime gpusvd.pspec(G, Ginv, Z, BigL)
     # Multiproc methods
-    println("Timing for Distributed gpusvd.pspec:")
-    gpusvd.pspec(G, Ginv, Z, BigL, nthreads())
+    addprocs(nthreads())
+    println("Timing for Distributed pspec:")
+    @btime pspec(G, Ginv, Z, BigL)
+    rmprocs(workers())
 end
 
 # Calculate the sigma matrix
 println("Computing the psuedospectrum...")
-if P > 0
-    sig = BF_sigma(Z, BigL)
+if N >= 40 && grid >= 10
+    addprocs(nthreads())
+    sig = pspec(G, Ginv, Z, L)
+    rmprocs(workers())
 else
-    sig = pspec(G, Ginv, Z, BigL)
+    sig = gpusvd.pspec(G, Ginv, Z, BigL)
 end
 
 # Debug

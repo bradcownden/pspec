@@ -9,8 +9,9 @@ export quadrature
     using LinearAlgebra
     using ThreadsX
     using BlockArrays
-    # Takes a function f which it itself a function of an input array and an index
-    # Array input is for data type consistancy
+    
+    # Takes a function f which it itself a function of an input array and 
+    # index; array input is for data type consistancy
     function quadrature(f, x::Vector)::Matrix
         # Quadrature points
         tquad = Vector{eltype(x)}(undef, length(x))

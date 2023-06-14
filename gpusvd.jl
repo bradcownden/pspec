@@ -12,8 +12,8 @@ export pspec
     using BlockArrays
     using BlockDiagonals
     using SparseArrays
-    using Distributed
     using LinearAlgebra
+
     function sigma(Z::Matrix, L::Matrix)::Matrix{Float64}
         # Distribute a shifted matrix and find the smallest singular values
         sig_out = similar(Z)
@@ -120,62 +120,5 @@ export pspec
         end
         return sig
         finish!(p)
-    end
-
-    # Calculate the pseudospectrum using the Gram matrices
-    function pspec(G::Matrix, Ginv::Matrix, Z::Matrix, L::Matrix,
-        Nworkers::Int)
-        ##########################################################################
-        ##########################################################################
-        #=
-        #  NOTE: it appears that there is not an SVD algorithm that returns
-        #  unsorted singular values. That means that stacking all shifted matrices
-        #  into a large block diagonal and solving the entire system destroys
-        #  the location information required. Only if each L operator is 
-        #  very large (> 10,000) would GPU methods produce a speedup. Unless a GPU
-        #  algorithm can be found that does not sort the singular values, this
-        #  avenue is a dead-end. The code below performs the stacking and GPU solve,
-        #  and is kept in case a new SVD algorithm is found
-        =#
-        #=
-        ndim = size(Z)[1] # number of shifted matrices
-        Dmatrix = Vector{Matrix}(undef, length(Z))
-        ThreadsX.foreach(Iterators.product(1:ndim, 1:ndim)) do (i,j)
-            # Calculate the shifted matrix
-            Lshift = L - Z[i,j] .* I
-            # Calculate the adjoint and map the product to the 
-            # diagonal entry of Dmatrix
-            Lshift_adj = Ginv * adjoint(Lshift) * G
-            Dmatrix[(i - 1) * ndim + j] = Lshift_adj * Lshift
-            next!(p)
-        end
-        finish!(p)
-        # Construct a BlockDiagonal representation from the vector of matrices
-        foo = BlockDiagonal([Dmatrix[i] for i in 1:length(Dmatrix)])
-        # Convert to sparse format and send to the GPU as Compressed Storage Column (CSC) data
-        d_foo = CUSPARSE.CuSparseMatrixCSC(sparse(foo))
-        # Perform the SVD decomposition on the GPU and return the singular values
-        svds = CUSOLVER.svdvals(d_foo)
-        # Reshape the minimum values of each block
-        svds = reshape(minimum.(svds), (length(Dmatrix), length(Dmatrix)))
-        return svds
-        =#
-        ##########################################################################
-        ##########################################################################
-        # Matrix calculation to be used in a pmaps call
-        # Create a vector of shifted matrices
-        ndim = size(Z)[1]
-        foo = Vector{Matrix}(undef, length(Z))
-        ThreadsX.foreach(Iterators.product(1:ndim, 1:ndim)) do (i,j)
-            foo[(i - 1) * ndim + j] = L - Z[i,j] .* I
-        end
-        bar = [(Ginv * adjoint(foo[i]) * G) * foo[i] for i in eachindex(foo)]
-        # Use pmap to distribute the svd calculation across processors
-        addprocs(Nworkers)
-        sig = pmap(LinearAlgebra.svdvals, bar)
-        sig = reshape(minimum.(sig), size(Z))
-        # Reshape and return sigma
-        print("Distributed sigma: "); show(sig); println("")
-        return sig
     end
 end
