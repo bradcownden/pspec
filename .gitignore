@@ -1,6 +1,7 @@
 # Ignore generated eigenvalue and pseudospectrum files
 jEigenvals*.txt
 jpspec*.txt
+Inputs.txt
 
 # Ignore LaTeX auxillary files
 *.out
