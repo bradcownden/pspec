@@ -5,6 +5,7 @@
 __precompile__()
 module quad
 export Gram
+export quadrature
     using LinearAlgebra
     using ThreadsX
     using BlockArrays

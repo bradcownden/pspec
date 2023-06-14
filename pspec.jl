@@ -1,20 +1,20 @@
 using Base.Threads
 using BenchmarkTools
 using DelimitedFiles
-using LinearAlgebra
 using ThreadsX
 using Base.MPFR
 using GenericLinearAlgebra
 using ProgressMeter
 using Parameters
-using DelimitedFiles
+using Distributed
+using LinearAlgebra
 
 include("./gpusvd.jl") 
 include("./quad.jl")
 using .gpusvd, .quad
 
 # Debug
-const debug = 0
+const debug = 1
 
 #######################################################
 #= Psuedospectrum calculation leveraging parallelism =#
@@ -424,7 +424,7 @@ vals = ThreadsX.sort!(GenericLinearAlgebra.eigvals(BigL), alg=ThreadsX.StableQui
 print("Done! Eigenvalues = "); show(vals); println("")
 
 # Write eigenvalues to file
-writeData(inputs, vals)
+#writeData(inputs, vals)
 
 
 ##################################
@@ -445,6 +445,11 @@ if debug > 0
     print("L2 = "); show(LL); println("")
     print("L = "); show(BigL); println("")
     print("Z = "); show(Z); println("")
+    function integrand(x::Vector, i::Int)
+        return cos(2 .* x[i]) * sin(x[i])
+    end
+    print("Integral[Cos(2x)Sin(x),{x,-1,1}] = 0: ")
+    show(sum(diag(quad.quadrature(integrand,x)))); println("")
 end
 
 # Construct the Gram matrices
@@ -455,13 +460,16 @@ if debug > 0
     print("Ginv * G = I: "); println(isapprox(Ginv * G, I))
     # Serial Timing
     println("Timing for serial sigma:")
-    @btime serial_sigma(G, Ginv, Z, BigL)
+    #@btime serial_sigma(G, Ginv, Z, BigL)
     # Large, block matrix
     println("Timing for gpusvd.sigma:")
-    @btime gpusvd.sigma(G, Ginv, Z, BigL)
+    #@btime gpusvd.sigma(G, Ginv, Z, BigL)
     # Threaded over individual shifted matrices
     println("Timing for gpusvd.pspec:")
-    @btime gpusvd.pspec(G, Ginv, Z, BigL)
+    #@btime gpusvd.pspec(G, Ginv, Z, BigL)
+    # Multiproc methods
+    println("Timing for Distributed gpusvd.pspec:")
+    gpusvd.pspec(G, Ginv, Z, BigL, nthreads())
 end
 
 # Calculate the sigma matrix
@@ -469,7 +477,7 @@ println("Computing the psuedospectrum...")
 if P > 0
     sig = BF_sigma(Z, BigL)
 else
-    sig = gpusvd.pspec(G, Ginv, Z, BigL)
+    sig = pspec(G, Ginv, Z, BigL)
 end
 
 # Debug
@@ -478,10 +486,10 @@ if debug > 0
     print("Parallel/Serial calculation match: "); println(isapprox(ssig, sig))
 end
 
-print("Done! Sigma = "); show(sig); println("")
+print("Done! Sigma = "); show(sig); println(size(sig))
 
 # Write Psuedospectrum to file
-writeData(inputs, sig)
+#writeData(inputs, sig)
 
 
 
