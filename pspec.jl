@@ -267,9 +267,12 @@ end
     if nprocs() > 1
         # Calculate all the shifted matrices
         ndim = size(Z)[1]
+        println("Constructing shifted matrices...")
         foo = pmap(i -> (L - Z[i] .* LinearAlgebra.I), eachindex(Z))
         # Apply svd to (Lshift)^\dagger Lshift
+        println("Constructing adjoint products...")
         bar = pmap(x -> (Ginv * adjoint(x) * G) * x, foo)
+        println("Calculating SVDs...")
         sig = pmap(GenericLinearAlgebra.svdvals!, bar)
         # Reshape and return sigma
         return reshape(minimum.(sig), (ndim, ndim))
