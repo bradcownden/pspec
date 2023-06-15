@@ -20,7 +20,7 @@ import .gpusvd, .quad
 # Debug 0: no debugging information
 # Debug 1: function timings and matrix inversion check
 # Debug 2: outputs from 1 plus matrix outputs and quadrature check
-const debug = 1
+const debug = 0
 
 #######################################################
 #= Psuedospectrum calculation leveraging parallelism =#
@@ -234,17 +234,6 @@ function make_Z(inputs::Inputs, x::Vector)
     return foo
 end
 
-function sigma(Z::Matrix, L::Matrix)
-    # Distribute a shifted matrix and find the smallest singular values
-    foo = similar(Z)
-    # Automatic load balancing, false sharing protection
-    ThreadsX.foreach(Iterators.product(1:size(Z)[1], 1:size(Z)[2])) do (i,j)
-        # Shift along the diagonal by a value in Z, take the smallest singular value
-        foo[i,j] = real(minimum(svd(L - Z[i,j] .* I).S)) # I is an automatically sized identity matrix
-    end
-    return foo
-end
-
 ##################################################
 #= Serial psuedospectrum for timing =#
 ##################################################
@@ -342,7 +331,7 @@ vals = ThreadsX.sort!(GenericLinearAlgebra.eigvals(BigL), alg=ThreadsX.StableQui
 print("Done! Eigenvalues = "); show(vals); println("")
 
 # Write eigenvalues to file
-#writeData(inputs, vals)
+writeData(inputs, vals)
 
 
 ##################################
@@ -356,13 +345,13 @@ G, Ginv = quad.Gram(w, p, V, D, x)
 
 # Debug
 if debug > 1
-    print("Collocation points = "); show(x); println("")
-    print("D = "); show(D); println("")
-    print("DD = "); show(DD); println("")
-    print("L1 = "); show(L); println("")
-    print("L2 = "); show(LL); println("")
-    print("L = "); show(BigL); println("")
-    print("Z = "); show(Z); println("")
+    print("Collocation points = ", size(x), " "); show(x); println("")
+    print("D = ", size(D), " "); show(D); println("")
+    print("DD = ", size(DD), " "); show(DD); println("")
+    print("L1 = ", size(L), " "); show(L); println("")
+    print("L2 = ", size(LL), " "); show(LL); println("")
+    print("L = ", size(BigL), " "); show(BigL); println("")
+    print("Z = ", size(Z), " "); show(Z); println("")
     function integrand(x::Vector, i::Int)
         return cos(2 .* x[i]) * sin(x[i])
     end
@@ -393,10 +382,10 @@ end
 # Calculate the sigma matrix. Rough benchmarking favours multiprocessor
 # methods if N > 50 and grid > 10
 println("Computing the psuedospectrum...")
-if N >= 50 && grid >= 10
+if N >= 50 && inputs.xgrid >= 10
     addprocs(nthreads())
     @everywhere using GenericLinearAlgebra # Send to workers after spawn
-    sig = pspec(G, Ginv, Z, L)
+    sig = pspec(G, Ginv, Z, BigL)
     rmprocs(workers())
 else
     sig = gpusvd.pspec(G, Ginv, Z, BigL)
@@ -411,7 +400,7 @@ end
 print("Done! Sigma = "); show(sig); println("")
 
 # Write Psuedospectrum to file
-#writeData(inputs, sig)
+writeData(inputs, sig)
 
 
 
