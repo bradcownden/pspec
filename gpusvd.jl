@@ -3,16 +3,18 @@
 =#
 __precompile__()
 module gpusvd
+
 export sigma
 export pspec
-    using ProgressMeter
-    using ThreadsX
-    using CUDA
-    using GenericLinearAlgebra
-    using BlockArrays
-    using BlockDiagonals
-    using SparseArrays
-    using LinearAlgebra
+
+using ProgressMeter
+using ThreadsX
+using CUDA
+using GenericLinearAlgebra
+using BlockArrays
+using BlockDiagonals
+using SparseArrays
+using LinearAlgebra
 
     function sigma(Z::Matrix, L::Matrix)::Matrix{Float64}
         # Distribute a shifted matrix and find the smallest singular values
