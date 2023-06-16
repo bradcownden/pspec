@@ -55,15 +55,83 @@ files = [f for f in os.listdir("./") if "j" in f and ".txt" in f]
 efile = [f for f in files if "jEigenvals" in f][-1]
 sfile = [f for f in files if "jpspec" in f][-1]
 
-data1 = readEigs('jEigenvals_N20.txt')
-data2 = readEigs('jEigenvals_N25.txt')
-data3 = readEigs('jEigenvals_N30.txt')
-sigma, pdata = readSigma('jpspec_N20.txt')
+# Specify spectral order
+Nspec = 10
 
+# Get eigenvalues and pseudospectra at increasing precision
+data1 = readEigs('jEigenvals_N' + str(Nspec) + 'P64.txt')
+data2 = readEigs('jEigenvals_N' + str(Nspec) + 'P96.txt')
+data3 = readEigs('jEigenvals_N' + str(Nspec) + 'P1024.txt')
+sigma1, pdata1 = readSigma('jpspec_N' + str(Nspec) + 'P64.txt')
+sigma2, pdata2 = readSigma('jpspec_N' + str(Nspec) + 'P96.txt')
+sigma3, pdata3 = readSigma('jpspec_N' + str(Nspec) + 'P1024.txt')
+
+# Make sure the psuedospectra are evaluated at the same points on the grid
+if np.any([(pdata1[i] - pdata2[i]) != 0. for i in range(len(pdata1))]) \
+    or np.any([(pdata3[i] - pdata2[i]) != 0. for i in range(len(pdata2))]):
+    print("\nERROR: Pseudospectrum characteristics do not match")
+    for p in [pdata1, pdata2, pdata3]:
+        print("xmin: %f, xmax: %f, ymin: %f, ymax: %f, grid: %f" %\
+              (p[0], p[1], p[2], p[3], p[4]))
+    print("")
+else:
+    D1 = np.linalg.norm(sigma3 - sigma2)
+    D2 = np.linalg.norm(sigma2 - sigma1)
+    if D2 == 0. or D1 == 0.:
+        print("Pspec order of convergence: inf")
+    else:
+        print("Order of convergence of pspec:", np.log2(D1/D2))
+    print("Pseudospectrum min/max:", np.min(sigma3), '/', np.max(sigma3))
+    print("")
+
+
+
+# Compare the convergence of the first Nmin/2
+# eigenvalues between highest and lowest fitting
+# See Boyd (7.19)-(7.20)
+Nmin = len(data1)/4
+Nmax = len(data3)/4
+odif, good_vals = [], []
+for i in range(int(Nmax)-1):
+    # Calculate weighting based on the difference of nearby values
+    if i == 0:
+        wt = abs(data1[i] - data1[i+1])
+    else:
+        l1, l2, l3 = data1[i-1:i+2]
+        wt = 0.5 * (abs(l2-l1) + abs(l3-l2))
+
+    odif.append(abs(data3[i] - data1[i]) / wt)
+    # Report 'good' eigenvalues
+    if odif[i] == 0.0:
+        print("Totally convergent eigenvalue:", data1[i])
+    else:
+        if (1./odif[i]) > 1E8:
+            good_vals.append([i, 1./odif[i]])
+            print("Good eigenvalue: i =", i, "w =", data1[i])
 
 # use LaTeX fonts in the plot
 plt.rc('text', usetex=True)
 plt.rc('font', family='serif')
+
+fig, ax = plt.subplots()
+ax.plot(np.arange(len(odif)), [1./val for val in odif], 'C4x')
+vshift = 1
+def switch(i):
+    return -1 if i % 2 == 0 else 1
+
+for pairs in good_vals:
+    ax.annotate(r'$\omega_{!s}$'.format('{' + str(pairs[0]) + '}'),
+                xy=pairs, xycoords ='data', horizontalalignment='center',
+                xytext=(0, switch(pairs[0]) * 30), textcoords='offset points',
+                arrowprops=dict(facecolor='C4', edgecolor='None',
+                width=1, headlength=4, headwidth=4, shrink=0.1),
+                bbox=dict(pad=2, facecolor='None', edgecolor='None'))
+    vshift += 1
+ax.set_xlabel(r'$i$')
+ax.set_ylabel(r'$\sigma^{-1}_{diff}$')
+ax.set_yscale('log')
+ax.set_ylim(10E-2, 10E17)
+plt.show()
 
 fig = plt.figure(figsize=(10,8))
 gs = GridSpec(2,2)
@@ -72,43 +140,45 @@ ax.append(fig.add_subplot(gs[0,0]))
 ax.append(fig.add_subplot(gs[0,1]))
 ax.append(fig.add_subplot(gs[1,:]))
 
-ax[0].plot([e.real for e in data1], [e.imag for e in data1], 'b.',
-           markersize=14, alpha=0.5)
-ax[0].plot([e.real for e in data2], [e.imag for e in data2], 'g.',
-           markersize=12, alpha=0.6)
 
 for this_ax in ax[:2]:
-    this_ax.plot([e.real for e in data3], [e.imag for e in data3], 'r.')
+    this_ax.plot([e.real for e in data1], [e.imag for e in data1], 'C1.',
+               markersize=30, alpha=0.33)
+    this_ax.plot([e.real for e in data2], [e.imag for e in data2], 'C2.',
+               markersize=20, alpha=0.66)
+    this_ax.plot([e.real for e in data3], [e.imag for e in data3], 'C3.',
+                 markersize=6)
     this_ax.grid(ls='--', alpha=0.5)
     this_ax.set_xlabel(r'Re $\omega$')
     this_ax.set_ylabel(r'Im $\omega$')
 
 # Zoom in on sub-region
 ax[1].set_xlim(-1,1)
-ax[1].set_ylim(-1,1)
+ax[1].set_ylim(-.5,0)
 
 # Pseudospectrum
-[X,Y] = np.mgrid[pdata[0]:pdata[1]:-1j*(pdata[-1]+1),
-                 pdata[2]:pdata[3]:-1j*(pdata[-1]+1)]
+[X,Y] = np.mgrid[pdata3[0]:pdata3[1]:-1j*(pdata3[-1]+1),
+                 pdata3[2]:pdata3[3]:-1j*(pdata3[-1]+1)]
 
 
 # Plot the pseudospectrum: a filled contour plot; a set of contour lines
 # at the desired powers of ten; a colourbar with log values in
 # scientific notation
-levels = [1e-3 * 2 ** i for i in range(0,11)]
-CS = ax[2].contourf(X, Y, sigma, levels=levels, locator=ticker.LogLocator(),
+#levels = [1e-8 * 10 ** (i/3) for i in range(0,19)]
+levels = [1e-6 * 10 ** (i/3) for i in range(0,19)]
+CS = ax[2].contourf(X, Y, sigma3, levels=levels, locator=ticker.LogLocator(),
                     cmap=cm.viridis_r)
-ax[2].contour(X, Y, sigma, levels=levels, colors='white', linewidths=0.5)
+ax[2].contour(X, Y, sigma3, levels=levels, colors='white', linewidths=0.5)
 cb = fig.colorbar(CS, ax=ax[2],
                     format=ticker.LogFormatterSciNotation(base=10.0))
-cb.set_label(label=r'  $\sigma^\epsilon$', rotation='horizontal')
+cb.set_label(label=r'      $\sigma^\epsilon$', rotation='horizontal')
 #ax[1].xaxis.set_major_formatter(ticker.LogLocator())
 #ax[1].yaxis.set_major_formatter(ticker.LogLocator())
 ax[2].plot([e.real for e in data3], [e.imag for e in data3], 'r.',
            markersize=6)
 ax[2].set_xlabel(r'Re $\omega$')
 ax[2].set_ylabel(r'Im $\omega$')
-ax[2].set_xlim(pdata[0],pdata[1])
-ax[2].set_ylim(pdata[2],pdata[3])
+ax[2].set_xlim(pdata3[0],pdata3[1])
+ax[2].set_ylim(pdata3[2],pdata3[3])
 
 plt.show()
