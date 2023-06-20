@@ -11,7 +11,8 @@ using Distributed
 
 include("./gpusvd.jl") 
 include("./quad.jl")
-import .gpusvd, .quad
+include("./slf.jl")
+import .gpusvd, .quad, .slf
 
 #####################
 #= Debug Verbosity =#
@@ -61,6 +62,9 @@ function readInputs(f::String)::Inputs
                 println("WARNING: number of spectral modes must be N > 3. " *
                 "Defaulting to N = 4.")
                 inpts.N = 4
+            # Bad singular value decomposition with odd numbers of N
+            elseif isodd(inpts.N)
+                inpts.N += 1
             end
         elseif k == "p_gridx" 
             inpts.xgrid = parse(Int64, get(data, k,nothing))
@@ -89,20 +93,38 @@ end
 
 
 function writeData(inpts::Inputs, data::Vector)
-    open("jEigenvals_N" * string(inpts.N) * "P" * string(P) * ".txt", "w") do io
-        writedlm(io, length(data))
-        # Caution: \t character automatically added to file between real and imaginary parts
-        writedlm(io, hcat(real.(data), imag.(data)))
-        println("Wrote data to ", split(io.name," ")[2][1:end-1])
+    if eltype(data) == BigFloat || eltype(data) == Complex{BigFloat}
+        open("jEigenvals_N" * string(inpts.N) * "P" * string(precision(BigFloat)) * ".txt", "w") do io
+            writedlm(io, length(data))
+            # Caution: \t character automatically added to file between real and imaginary parts
+            writedlm(io, hcat(real.(data), imag.(data)))
+            println("Wrote data to ", split(io.name," ")[2][1:end-1])
+        end
+    else
+        open("jEigenvals_N" * string(inpts.N) * "P64.txt", "w") do io
+            writedlm(io, length(data))
+            # Caution: \t character automatically added to file between real and imaginary parts
+            writedlm(io, hcat(real.(data), imag.(data)))
+            println("Wrote data to ", split(io.name," ")[2][1:end-1])
+        end
     end
 end
 
-function writeData(inpts::Inputs, data::Matrix)
-    open("jpspec_N" * string(inpts.N) * "P" * string(P) * ".txt", "w") do io
-        writedlm(io, adjoint([inpts.xmin, inpts.xmax, inpts.ymin, inpts.ymax, inpts.xgrid]))
-        writedlm(io, hcat(size(data)))
-        writedlm(io, data)
-        println("Wrote data to ", split(io.name," ")[2][1:end-1])
+function writeData(inpts::Inputs, data::Matrix, x::Vector)
+    if eltype(x) == BigFloat || eltype(x) == Complex{BigFloat}
+        open("jpspec_N" * string(inpts.N) * "P" * string(precision(BigFloat)) * ".txt", "w") do io
+            writedlm(io, adjoint([inpts.xmin, inpts.xmax, inpts.ymin, inpts.ymax, inpts.xgrid]))
+            writedlm(io, hcat(size(data)))
+            writedlm(io, data)
+            println("Wrote data to ", split(io.name," ")[2][1:end-1])
+        end
+    else
+        open("jpspec_N" * string(inpts.N) * "P64.txt", "w") do io
+            writedlm(io, adjoint([inpts.xmin, inpts.xmax, inpts.ymin, inpts.ymax, inpts.xgrid]))
+            writedlm(io, hcat(size(data)))
+            writedlm(io, data)
+            println("Wrote data to ", split(io.name," ")[2][1:end-1])
+        end
     end
 end
 
@@ -156,13 +178,17 @@ end
 #= Operators =#
 ###############
 
+# Use scaled versions of SL functions for better convergence; use
+# unscaled versions in the quadrature calculation
+
 function L1(x::Array, D::Matrix, DD::Matrix) # Make the L1 operator
     N = length(x)
     foo = Matrix{eltype(x)}(undef, (N,N))
     # Automatic load balancing, false sharing protection
     ThreadsX.foreach(1:N) do i
-        foo[i,:] = pp(x,i) .* D[i,:] + p(x,i) .* DD[i,:] # Dot operator applies addition to every element
-        foo[i,i] -= V(x,i)
+        foo[i,:] = pp_scale(x,i) .* D[i,:] + 
+            p_scale(x,i) .* DD[i,:] # Dot operator applies addition to every element
+        foo[i,i] -= V_scale(x,i)
     end
     return foo
 end
@@ -172,15 +198,15 @@ function L2(x::Array, D::Matrix) # Make the L2 operator
     foo = Matrix{eltype(x)}(undef, (N,N))
     # Automatic load balancing, false sharing protection
     ThreadsX.foreach(1:N) do i
-        foo[i,:] = (2 * gamma(x,i)) .* D[i,:] # Dot operator applies addition to every element
-        foo[i,i] += gammap(x,i)
+        foo[i,:] = (2 * gamma_scale(x,i)) .* D[i,:] # Dot operator applies addition to every element
+        foo[i,i] += gammap_scale(x,i)
     end
     return foo
 end
 
-###############################
-#= Sturm-Louiville functions =#
-###############################
+######################################
+#= Scaled Sturm-Louiville functions =#
+######################################
 
 function s(x::Array, i::Integer)
     return sqrt(1 - x[i]^2) # Automatic datatype matching
@@ -190,24 +216,24 @@ function w(x::Array, i::Integer) # Automatic datatype matching
     return x[i]
 end
 
-function p(x::Array, i::Integer) # Automatic datatype matching
+function p_scale(x::Array, i::Integer) # Automatic datatype matching
     return (x[i]-1)^2 * (x[i] + 1) * (3 - x[i] + 2 * s(x,i))
 end
 
-function pp(x::Array, i::Integer) # Automatic datatype matching
+function pp_scale(x::Array, i::Integer) # Automatic datatype matching
     return (x[i] - 1) * (1 + 2 * x[i]) * (3 - x[i] + 2 * s(x,i))
 end
 
-function gamma(x::Array, i::Integer) # Automatic datatype matching
-    return (1 + x[i] + s(x,i)) * (3 - x[i] + 2 * s(x,i)) /
+function gamma_scale(x::Array, i::Integer) # Automatic datatype matching
+    return (5 * (1 + s(x,i)) + x[i] * (2 - 3 * x[i] + s(x,i))) /
     sqrt((-3 + x[i] - 2 * s(x,i))/(x[i]-1))
 end
 
-function gammap(x::Array, i::Integer) # Automatic datatype matching
+function gammap_scale(x::Array, i::Integer) # Automatic datatype matching
     return 1 / sqrt((-3 + x[i] - 2 * s(x,i))/(x[i]-1))
 end
 
-function V(x::Array, i::Integer) # Automatic datatype matching
+function V_scale(x::Array, i::Integer) # Automatic datatype matching
     return 3 * (1 - 4 * s(x,i) + x[i] * (34 - 15 * x[i] + 44 * s(x,i))) /
     (8 * (1 + s(x,i)) * (3 - x[i] + 2 * s(x,i)))
 end
@@ -290,21 +316,18 @@ if length(ARGS) != 1
     println("Usage:")
     println("julia -t M pspec.jl P")
     println("M (int): the number of tasks to launch in parallel regions")
-    println("P (int): digits of precision for calculations - default is 32")
+    println("P (int): digits of precision for calculations - default is 64")
     println("NOTE: Requires the file 'Inputs.txt' to be in the current directory")
     println("")
     exit()
 else
-    P = parse(Int64, ARGS[1])
-    if P < 32
-        P = -1
-    end
+    P = parse(Int32, ARGS[1])
 end
 
 if nthreads() > 1
     println("Number of threads: ", nthreads())
 end
-if P > 0
+if P > 64
     setprecision(P)
     println("Precision set to ", Base.precision(BigFloat), " bits")
 end
@@ -344,7 +367,7 @@ writeData(inputs, vals)
 # Make the meshgrid
 Z = make_Z(inputs, x)
 # Construct the Gram matrices
-G, Ginv = quad.Gram(w, p, V, D, x)
+G, Ginv = quad.Gram(slf.w, slf.p, slf.V, D, x)
 
 # Debug
 if debug > 1
@@ -385,7 +408,7 @@ end
 # Calculate the sigma matrix. Rough benchmarking favours multiprocessor
 # methods if N > 50 and grid > 10
 println("Computing the psuedospectrum...")
-if N >= 50 && inputs.xgrid >= 10
+if N >= 50 || inputs.xgrid >= 10
     addprocs(nthreads())
     @everywhere using GenericLinearAlgebra # Send to workers after spawn
     sig = pspec(G, Ginv, Z, BigL)
@@ -400,10 +423,10 @@ if debug > 1
     print("Parallel/Serial calculation match: "); println(isapprox(ssig, sig))
 end
 
-print("Done! Sigma = "); show(sig); println("")
+# Write Psuedospectrum to file (x vector for data type)
+writeData(inputs, sig, x)
 
-# Write Psuedospectrum to file
-writeData(inputs, sig)
+print("Done! Sigma = "); show(sig); println("")
 
 
 
