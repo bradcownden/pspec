@@ -56,7 +56,7 @@ efile = [f for f in files if "jEigenvals" in f][-1]
 sfile = [f for f in files if "jpspec" in f][-1]
 
 # Specify spectral order
-Nspec = 10
+Nspec = 30
 
 # Get eigenvalues and pseudospectra at increasing precision
 data1 = readEigs('jEigenvals_N' + str(Nspec) + 'P64.txt')
@@ -91,7 +91,7 @@ else:
 # See Boyd (7.19)-(7.20)
 Nmin = len(data1)/4
 Nmax = len(data3)/4
-odif, good_vals = [], []
+odif, good_vals, eigs = [], [], []
 for i in range(int(Nmax)-1):
     # Calculate weighting based on the difference of nearby values
     if i == 0:
@@ -107,30 +107,38 @@ for i in range(int(Nmax)-1):
     else:
         if (1./odif[i]) > 1E8:
             good_vals.append([i, 1./odif[i]])
+            eigs.append([i, data1[i]])
             print("Good eigenvalue: i =", i, "w =", data1[i])
 
 # use LaTeX fonts in the plot
 plt.rc('text', usetex=True)
 plt.rc('font', family='serif')
 
-fig, ax = plt.subplots()
-ax.plot(np.arange(len(odif)), [1./val for val in odif], 'C4x')
+fig, ax = plt.subplots(2,1)
+ax[0].plot(np.arange(len(odif)), [1./val for val in odif], 'C4x')
 vshift = 1
 def switch(i):
     return -1 if i % 2 == 0 else 1
 
 for pairs in good_vals:
-    ax.annotate(r'$\omega_{!s}$'.format('{' + str(pairs[0]) + '}'),
+    ax[0].annotate(r'$\omega_{!s}$'.format('{' + str(pairs[0]) + '}'),
                 xy=pairs, xycoords ='data', horizontalalignment='center',
                 xytext=(0, switch(pairs[0]) * 30), textcoords='offset points',
                 arrowprops=dict(facecolor='C4', edgecolor='None',
                 width=1, headlength=4, headwidth=4, shrink=0.1),
                 bbox=dict(pad=2, facecolor='None', edgecolor='None'))
     vshift += 1
-ax.set_xlabel(r'$i$')
-ax.set_ylabel(r'$\sigma^{-1}_{diff}$')
-ax.set_yscale('log')
-ax.set_ylim(10E-2, 10E17)
+ax[0].set_xlabel(r'$i$')
+ax[0].set_ylabel(r'$\sigma^{-1}_{diff}$')
+ax[0].set_yscale('log')
+ax[0].set_ylim(10E-2, 10E17)
+
+# Include a table of good eigenvalues
+collabel=(r'Re $\omega_n$', r'Im $\omega_n$')
+ax[1].axis('off')
+ax[1].table(cellText=[[x[1].real, x[1].imag] for x in eigs],
+            colLabels=collabel, loc='center')
+plt.subplots_adjust(hspace=0.1)
 plt.show()
 
 fig = plt.figure(figsize=(10,8))
@@ -153,8 +161,8 @@ for this_ax in ax[:2]:
     this_ax.set_ylabel(r'Im $\omega$')
 
 # Zoom in on sub-region
-ax[1].set_xlim(-1,1)
-ax[1].set_ylim(-.5,0)
+ax[1].set_xlim(-.55,.55)
+ax[1].set_ylim(-.55,.55)
 
 # Pseudospectrum
 [X,Y] = np.mgrid[pdata3[0]:pdata3[1]:-1j*(pdata3[-1]+1),
@@ -180,5 +188,6 @@ ax[2].set_xlabel(r'Re $\omega$')
 ax[2].set_ylabel(r'Im $\omega$')
 ax[2].set_xlim(pdata3[0],pdata3[1])
 ax[2].set_ylim(pdata3[2],pdata3[3])
+plt.suptitle(r'$N =$ ' + str(Nspec))
 
 plt.show()
