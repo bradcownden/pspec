@@ -408,17 +408,10 @@ end
 # Calculate the sigma matrix. Rough benchmarking favours multiprocessor
 # methods if N > 50 and grid > 10
 println("Computing the psuedospectrum...")
-if N >= 50 || inputs.xgrid >= 10
-    addprocs(nthreads())
-    @everywhere using GenericLinearAlgebra # Send to workers after spawn
-    sig = pspec(G, Ginv, Z, BigL)
-    rmprocs(workers())
-else
-    sig = gpusvd.pspec(G, Ginv, Z, BigL)
-end
+sig = gpusvd.pspec(G, Ginv, Z, BigL)
 
 # Debug
-if debug > 1
+if debug > 0
     ssig = serial_sigma(G, Ginv, Z, BigL)
     print("Parallel/Serial calculation match: "); println(isapprox(ssig, sig))
 end

@@ -106,6 +106,7 @@ using LinearAlgebra
         ##########################################################################
         ##########################################################################
 
+        #=
         sig = similar(Z, Float64)
         # Include progress bar for long calculations
         p = Progress(length(Z), dt=0.1, desc="Computing pseudospectrum...", 
@@ -120,7 +121,20 @@ using LinearAlgebra
             sig[i,j] = Float64(real(minimum(GenericLinearAlgebra.svdvals(Lshift_adj * Lshift))))
             next!(p)
         end
-        return sig
         finish!(p)
+        return sig
+        =#
+        foo = Vector{Matrix}(undef, length(Z))
+        bar = Vector{Matrix}(undef, length(Z))
+        sig = Vector(undef, length(Z))
+        println("Constructing shifted matrices...")
+        ThreadsX.map!(i -> (L - Z[i] .* I), foo, eachindex(Z))
+        println("Constructing adjoint products...")
+        ThreadsX.map!(x -> (Ginv * adjoint(foo[x]) * G) * foo[x], 
+            bar, eachindex(foo))
+        println("Calculating SVDs...")
+        sig = ThreadsX.map(GenericLinearAlgebra.svdvals!, bar)
+        # Reshape and return sigma
+        return reshape(minimum.(sig), size(Z))
     end
 end
