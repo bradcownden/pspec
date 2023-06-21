@@ -10,6 +10,9 @@ import matplotlib.pyplot as plt
 from matplotlib import cm, ticker
 from matplotlib.gridspec import GridSpec
 
+###############################################################################
+###############################################################################
+
 def readEigs(file):
     # First line is the length of the vector of eigenvalues
     with open(file, 'r') as f:
@@ -51,20 +54,24 @@ def readSigma(file):
             out[i,:] = sig[i]
         return out, [xmin, xmax, ymin, ymax, grid]
 
+
+###############################################################################
+###############################################################################
+
+# Specify spectral order
+Nspec = 60
+
 files = [f for f in os.listdir("./") if "j" in f and ".txt" in f]
 efile = [f for f in files if "jEigenvals" in f][-1]
 sfile = [f for f in files if "jpspec" in f][-1]
 
-# Specify spectral order
-Nspec = 30
-
 # Get eigenvalues and pseudospectra at increasing precision
 data1 = readEigs('jEigenvals_N' + str(Nspec) + 'P64.txt')
-data2 = readEigs('jEigenvals_N' + str(Nspec) + 'P96.txt')
-data3 = readEigs('jEigenvals_N' + str(Nspec) + 'P1024.txt')
+data2 = readEigs('jEigenvals_N' + str(Nspec) + 'P128.txt')
+data3 = readEigs('jEigenvals_N' + str(Nspec) + 'P256.txt')
 sigma1, pdata1 = readSigma('jpspec_N' + str(Nspec) + 'P64.txt')
-sigma2, pdata2 = readSigma('jpspec_N' + str(Nspec) + 'P96.txt')
-sigma3, pdata3 = readSigma('jpspec_N' + str(Nspec) + 'P1024.txt')
+sigma2, pdata2 = readSigma('jpspec_N' + str(Nspec) + 'P128.txt')
+sigma3, pdata3 = readSigma('jpspec_N' + str(Nspec) + 'P256.txt')
 
 # Make sure the psuedospectra are evaluated at the same points on the grid
 if np.any([(pdata1[i] - pdata2[i]) != 0. for i in range(len(pdata1))]) \
@@ -83,7 +90,6 @@ else:
         print("Order of convergence of pspec:", np.log2(D1/D2))
     print("Pseudospectrum min/max:", np.min(sigma3), '/', np.max(sigma3))
     print("")
-
 
 
 # Compare the convergence of the first Nmin/2
@@ -114,7 +120,7 @@ for i in range(int(Nmax)-1):
 plt.rc('text', usetex=True)
 plt.rc('font', family='serif')
 
-fig, ax = plt.subplots(2,1)
+fig, ax = plt.subplots(2,1, figsize=(8,8))
 ax[0].plot(np.arange(len(odif)), [1./val for val in odif], 'C4x')
 vshift = 1
 def switch(i):
@@ -134,11 +140,14 @@ ax[0].set_yscale('log')
 ax[0].set_ylim(10E-2, 10E17)
 
 # Include a table of good eigenvalues
-collabel=(r'Re $\omega_n$', r'Im $\omega_n$')
+collabel=(r'Re $\omega_i$', r'Im $\omega_i$')
 ax[1].axis('off')
 ax[1].table(cellText=[[x[1].real, x[1].imag] for x in eigs],
             colLabels=collabel, loc='center')
-plt.subplots_adjust(hspace=0.1)
+plt.subplots_adjust(hspace=0.15)
+plt.suptitle(r'$N = $ ' + str(Nspec))
+plt.savefig('data/OrdinalEigDiff_N%d' % Nspec + '.pdf', format='pdf',
+            transparent=True, bbox_inches='tight')
 plt.show()
 
 fig = plt.figure(figsize=(10,8))
@@ -189,5 +198,6 @@ ax[2].set_ylabel(r'Im $\omega$')
 ax[2].set_xlim(pdata3[0],pdata3[1])
 ax[2].set_ylim(pdata3[2],pdata3[3])
 plt.suptitle(r'$N =$ ' + str(Nspec))
-
+plt.savefig('data/pspec_N%d' % Nspec + '.pdf', format='pdf',
+            transparent=True, bbox_inches='tight')
 plt.show()
