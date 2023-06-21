@@ -48,8 +48,8 @@ def updateInputs(Nnew):
 
 
 
-prec = ['64', '96', '1024']
-res = [10 * i for i in range(4,11)]
+prec = [str(64 * 2 ** i) for i in range(1,3) ]
+res = [10 * i for i in range(7,11)]
 
 # Run the julia program pspec.jl with increasing precisions over
 # the set of resolutions. After each resolution has run at precisions
@@ -58,16 +58,15 @@ res = [10 * i for i in range(4,11)]
 # and precisions
 
 print("Starting pseudospectrum calculations for resolutions " +\
-      "N = %d to N = %d for %d to %d digits of precision" % (res[0], res[-1],\
-      int(float(prec[0]) * np.log10(2.) - 1), \
-          int(np.log10(2) * float(prec[-1]) - 1)))
+      "N = %d to N = %d for %d to %d bits of precision" % (res[0], res[-1],\
+      prec[0], prec[-1]))
 
 for N in res:
     updateInputs(N)
     print("Current resolution:", N)
     for p in prec:
         print("Running with", p, "bits of precision")
-        sp.check_output("julia -t 12 ./pspec.jl " + p, shell=True)
+        sp.check_output("julia -t auto ./pspec.jl " + p, shell=True)
 
 
 
