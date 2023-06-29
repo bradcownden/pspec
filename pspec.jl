@@ -6,13 +6,15 @@ using Base.MPFR
 using ProgressMeter
 using Parameters
 using Distributed
+using Random
 @everywhere using LinearAlgebra
 @everywhere using GenericLinearAlgebra
 
 include("./gpusvd.jl") 
 include("./quad.jl")
 include("./slf.jl")
-import .gpusvd, .quad, .slf
+include("./vpert.jl")
+import .gpusvd, .quad, .slf, .pert
 
 #####################
 #= Debug Verbosity =#
@@ -93,38 +95,32 @@ end
 
 
 function writeData(inpts::Inputs, data::Vector)
+    fname = "jEigenvals_N" * string(inpts.N) * "P"
     if eltype(data) == BigFloat || eltype(data) == Complex{BigFloat}
-        open("jEigenvals_N" * string(inpts.N) * "P" * string(precision(BigFloat)) * ".txt", "w") do io
-            writedlm(io, length(data))
-            # Caution: \t character automatically added to file between real and imaginary parts
-            writedlm(io, hcat(real.(data), imag.(data)))
-            println("Wrote data to ", split(io.name," ")[2][1:end-1])
-        end
+        fname *= string(precision(BigFloat)) * ".txt"
     else
-        open("jEigenvals_N" * string(inpts.N) * "P64.txt", "w") do io
-            writedlm(io, length(data))
-            # Caution: \t character automatically added to file between real and imaginary parts
-            writedlm(io, hcat(real.(data), imag.(data)))
-            println("Wrote data to ", split(io.name," ")[2][1:end-1])
-        end
+        fname *= "64.txt"
+    end
+    open(fname, "w") do io
+        writedlm(io, length(data))
+        # Caution: \t character automatically added to file between real and imaginary parts
+        writedlm(io, hcat(real.(data), imag.(data)))
+        println("Wrote data to ", split(io.name," ")[2][1:end-1])
     end
 end
 
 function writeData(inpts::Inputs, data::Matrix, x::Vector)
+    fname = "jpspec_N" * string(inpts.N) * "P"
     if eltype(x) == BigFloat || eltype(x) == Complex{BigFloat}
-        open("jpspec_N" * string(inpts.N) * "P" * string(precision(BigFloat)) * ".txt", "w") do io
-            writedlm(io, adjoint([inpts.xmin, inpts.xmax, inpts.ymin, inpts.ymax, inpts.xgrid]))
-            writedlm(io, hcat(size(data)))
-            writedlm(io, data)
-            println("Wrote data to ", split(io.name," ")[2][1:end-1])
-        end
+        fname *= string(precision(BigFloat)) * ".txt"
     else
-        open("jpspec_N" * string(inpts.N) * "P64.txt", "w") do io
-            writedlm(io, adjoint([inpts.xmin, inpts.xmax, inpts.ymin, inpts.ymax, inpts.xgrid]))
-            writedlm(io, hcat(size(data)))
-            writedlm(io, data)
-            println("Wrote data to ", split(io.name," ")[2][1:end-1])
-        end
+        fname *= "64.txt"
+    end
+    open(fname, "w") do io
+        writedlm(io, adjoint([inpts.xmin, inpts.xmax, inpts.ymin, inpts.ymax, inpts.xgrid]))
+        writedlm(io, hcat(size(data)))
+        writedlm(io, data)
+        println("Wrote data to ", split(io.name," ")[2][1:end-1])
     end
 end
 
@@ -421,5 +417,17 @@ writeData(inputs, sig, x)
 
 print("Done! Sigma = "); show(sig); println("")
 
+
+# Add a perturbation to the potential with a specified magnitude
+
+# Example: Gaussian distribution
+#     dV = [exp(-0.5 * x[i] * x[i]) / sqrt(2 * pi) for i in eachindex(x)]
+# Example: Random values
+#     Random.seed!(1234)
+#     dV = Vector{eltype(x)}(rand(length(x)))
+
+dV = cos.((2*pi*50) .* x)
+epsilon = 1e-3
+pert.vpert(epsilon, dV, slf.w, x, G, Ginv, BigL)
 
 
