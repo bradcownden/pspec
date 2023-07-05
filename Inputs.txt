@@ -1,7 +1,8 @@
-spectral_N=25
-xgrid_min=-.5
-xgrid_max=0.5
+spectral_N=4
+xgrid_min=-.75
+xgrid_max=0.75
 ygrid_min=-1.0
 ygrid_max=1.55
-p_gridx=5
-p_gridy=5
+p_gridx=30
+p_gridy=30
+basis=GC
