@@ -7,6 +7,7 @@ using ProgressMeter
 using Parameters
 using Distributed
 using Random
+using LoopVectorization
 @everywhere using LinearAlgebra
 @everywhere using GenericLinearAlgebra
 
@@ -14,7 +15,8 @@ include("./gpusvd.jl")
 include("./quad.jl")
 include("./slf.jl")
 include("./vpert.jl")
-import .gpusvd, .quad, .slf, .pert
+include("./io.jl")
+import .gpusvd, .quad, .slf, .pert, .io
 
 #####################
 #= Debug Verbosity =#
@@ -30,7 +32,7 @@ const debug = 0
 #######################################################
 
 ####################
-#= I/O and Inputs =#
+#= Inputs =#
 ####################
 
 @with_kw mutable struct Inputs
@@ -41,8 +43,11 @@ const debug = 0
     ymax::Float64 = 1
     xgrid::Int64 = 2
     ygrid::Int64 = 2
+    basis::String = "GC"
 end
 
+# Read parameters from input file and store in Inputs struct
+# Perform checks on initial values when necessary
 function readInputs(f::String)::Inputs
     # Open the specified file and read the inputs into a dictionary
     data = Dict{SubString, Any}()
@@ -86,6 +91,13 @@ function readInputs(f::String)::Inputs
             inpts.ymin = parse(Float64, get(data, k, nothing))
         elseif k == "ygrid_max"
             inpts.ymax = parse(Float64, get(data, k, nothing))           
+        elseif k == "basis"
+            # Don't need to parse strings
+            inpts.basis = get(data, k, nothing)
+            # If none of the inputs are chosen, default to interior
+            if !(occursin(inpts.basis, "GC GL LGR RGR")) || typeof(inpts.basis) == Nothing
+                inpts.basis = "GC"
+            end
         else
             println(""); println("\nERROR: unexpected entry in input file: ", k)
         end
@@ -93,81 +105,191 @@ function readInputs(f::String)::Inputs
     return inpts
 end
 
-
-function writeData(inpts::Inputs, data::Vector)
-    fname = "jEigenvals_N" * string(inpts.N) * "P"
-    if eltype(data) == BigFloat || eltype(data) == Complex{BigFloat}
-        fname *= string(precision(BigFloat)) * ".txt"
-    else
-        fname *= "64.txt"
-    end
-    open(fname, "w") do io
-        writedlm(io, length(data))
-        # Caution: \t character automatically added to file between real and imaginary parts
-        writedlm(io, hcat(real.(data), imag.(data)))
-        println("Wrote data to ", split(io.name," ")[2][1:end-1])
-    end
-end
-
-function writeData(inpts::Inputs, data::Matrix, x::Vector)
-    fname = "jpspec_N" * string(inpts.N) * "P"
-    if eltype(x) == BigFloat || eltype(x) == Complex{BigFloat}
-        fname *= string(precision(BigFloat)) * ".txt"
-    else
-        fname *= "64.txt"
-    end
-    open(fname, "w") do io
-        writedlm(io, adjoint([inpts.xmin, inpts.xmax, inpts.ymin, inpts.ymax, inpts.xgrid]))
-        writedlm(io, hcat(size(data)))
-        writedlm(io, data)
-        println("Wrote data to ", split(io.name," ")[2][1:end-1])
-    end
-end
-
 #####################
 #= Basis functions =#
 #####################
 
-function basis(N::Integer, P::Integer)# Gauss-Chebyshev collocation points
-    # Set the precision of all subsequent operations based on the
-    # specified digits of precision
+# Take inputs to determine the type of collocation grid, grid size,
+# desired precision
+function make_basis(inputs::Any, P::Int)
+
+    # Determine data types and vector lengths
     if P > 64
-        setprecision(P)
-        foo = Vector{BigFloat}(undef, N)
-        ThreadsX.map!(i->cos(pi*(2*i-1)/(2*N)),foo,1:N)
-        return foo
+        x = Vector{BigFloat}(undef, inputs.N::Int)
     else
-        foo = Vector{Float64}(undef, N)
-        ThreadsX.map!(i->cos(pi*(2*i-1)/(2*N)),foo,1:N)
-        return foo
+        x = Vector{Float64}(undef, inputs.N::Int)
     end
-end
+    
+    if inputs.basis::String == "GC"
+        add = Vector{eltype(x)}(undef, 1)
+        append!(x, add)
+    end
 
-function make_D(x::Array, N::Integer)# Make the derivative matrix
-    foo = Matrix{eltype(x)}(undef, (N,N))
-    # Automatic load balancing, false sharing protection
-    ThreadsX.foreach(Iterators.product(1:N, 1:N)) do (i,j)
-        if i != j
-            foo[i,j] = (-1.)^(i+j) * sqrt((1. - x[j] * x[j]) /
-            (1. - x[i] * x[i])) / (x[i] - x[j])
-        else
-            foo[i,j] = 0.5 * x[i] / (1. - x[i] * x[i])
-        end
-    end
-    return foo
-end
+    # Reference the data type of the collocation vector 
+    # for the other matrices
+    D = Matrix{eltype(x)}(undef, (length(x), length(x)))
+    DD = similar(D)
 
-function make_DD(x::Array, N::Integer, D::Matrix) # Make the second derivative matrix
-    foo = Matrix{eltype(x)}(undef, (N,N))
-    # Automatic load balancing, false sharing protection
-    ThreadsX.foreach(Iterators.product(1:N, 1:N)) do (i,j)
-        if i == j
-            foo[i,j] = x[j] * x[j] / (1. - x[j] * x[j]) ^ 2 - (N * N - 1.) / (3. * (1. - x[j] * x[j]))
-        else
-            foo[i,j] = D[i,j] * (x[i] / (1. - x[i] * x[i]) - 2. / (x[i] - x[j]))
+    # Algorithms for different collocation sets
+    if inputs.basis::String == "GC"
+        n = length(x)
+        mrange = [pi * (2 * i - 1) / (2 * length(x)) for i in 1:n]
+        # Collocation points
+        x = @tturbo @. cos(mrange)
+        print(inputs.basis::String * ": "); show(x); println("") 
+        # First derivative matrix
+        ThreadsX.foreach(Iterators.product(1:n, 1:n)) do (i,j)
+            if i != j
+                D[i,j] = (-1)^(i+j) * sqrt((1 - x[j] * x[j]) /
+                (1 - x[i]^2)) / (x[i] - x[j])
+            else
+                D[i,i] = 0.5 * x[i] / (1 - x[i]^2) 
+            end
         end
+        # Second derivative matrix
+        ThreadsX.foreach(Iterators.product(1:n, 1:n)) do (i,j)
+            if i != j
+                DD[i,j] = D[i,j] * (x[i] / (1 - x[i] * x[i]) - 2 / (x[i] - x[j]))
+            else
+                DD[j,j] = x[j] * x[j] / (1 - x[j] * x[j])^2 - (n * n - 1) / (3 * (1. - x[j] * x[j]))
+            end
+        end
+        return x, D, DD
+
+    elseif inputs.basis::String == "GL"
+        # Size of abscissa is N + 1
+        n = length(x)
+        N = length(x) - 1
+        mrange = [pi*i / N for i in 0:N]
+        # Collocation points
+        x = @tturbo @. cos(mrange)
+        print(inputs.basis::String * ": "); show(x); println("") 
+        kappa = [i == 1 ? 2 : i == n ? 2 : 1 for i in eachindex(x)]
+        println(kappa)
+        # First derivative matrix
+        ThreadsX.foreach(Iterators.product(1:n, 1:n)) do (i,j)
+            if i == j
+                if i == 1 && j == 1
+                    D[i,j] = (2 * N^2 + 1) / 6
+                elseif i == n && j == n
+                    D[i,j] = -(2 * N^2 + 1) / 6
+                else
+                    D[i,i] = -x[i] / (2*(1 - x[i]^2))
+                end
+            else
+                D[i,j] = kappa[i] * (-1)^(i-j) / (kappa[j] * (x[i] - x[j]))
+            end
+        end
+        # Second derivative matrix
+        ThreadsX.foreach(Iterators.product(1:n, 1:n)) do (i,j)
+            if i == j
+                if i == 1 && j == 1
+                    DD[i,i] = (N^4 - 1) / 15
+                elseif i == n && j == n
+                    DD[i,i] = (N^4 - 1) / 15
+                else
+                    DD[i,i] = -1 / (1 - x[i]^2)^2 - (N^2 - 1) / (3 * (1 - x[i]^2))
+                end
+            elseif i == 1 && j != 1
+                DD[i,j] = 2 * (-1)^(j-1) * ((2*N^2 + 1) * (1 - x[j]) - 6) / (3 * kappa[j] * (1 - x[j])^2)
+            elseif i == n && j != n
+                DD[i,j] = 2 * (-1)^(N+j-1) * ((2*N^2 + 1) * (1 + x[j]) - 6) / (3 * kappa[j] * (1 + x[j])^2)
+            else
+                DD[i,j] = (-1)^(i-j) * (x[i]^2 + x[i]*x[j] - 2) / 
+                            (kappa[j] * (1 - x[i]^2) * (x[j] - x[i])^2)
+            end
+        end
+        return x, D, DD
+
+    elseif inputs.basis::String == "LGR"
+        # Size of abscissa is N + 1
+        n = length(x) - 1
+        mrange = [pi*(2*n + 1 - 2*i) / (2*n + 1) for i in 0:n]
+        # Collocation points
+        x = @tturbo @. cos(mrange)
+        print(inputs.basis::String * ": "); show(x); println("") 
+        # First derivative matrix
+        ThreadsX.foreach(Iterators.product(1:n+1, 1:n+1)) do (i,j)
+            if i == j
+                # NB. Arrays start at 1
+                if i == 1 && j == 1
+                    D[i,j] = -n * (n + 1) / 3
+                else
+                    D[i,j] = 1 / (2 * (1 - x[i] * x[i]))
+                end
+            elseif i == 1 && j != 1
+                D[i,j] = (-1)^(j) * sqrt(2*(1 + x[j])) / (1 - x[j])
+            elseif i != 1 && j == 1
+                D[i,j] = (-1)^(i-1) / (sqrt(2*(1 + x[i])) * (1 - x[i]))
+            else
+                D[i,j] = (-1)^(i-j) * sqrt((1 + x[j]) / (1 + x[i])) / (x[j] - x[i])
+            end
+        end
+        # Second derivative matrix
+        ThreadsX.foreach(Iterators.product(1:n+1, 1:n+1)) do (i,j)
+            if i == j
+                # NB. Arrays start at 1
+                if i == 1 && j == 1
+                    DD[i,j] = n * (n - 1) * (n + 1) * (n + 2) / 15
+                else
+                    DD[i,j] = -n * (n + 1) / (3 * (1 - x[i]^2))
+                                - x[i] / (1 - x[i]^2)^2
+                end
+            elseif i == 1 && j != 1
+                DD[i,j] = (-1)^(j-1) * 2 * sqrt(2 * (1 + x[j])) * (n * (n+1) * (1 - x[j]) - 3) / (3 * (1 - x[j])^2)
+            elseif i != 1 && j == 1
+                DD[i,j] = (-1)^i * (2 * x[i] + 1) / (sqrt(2) * (1 - x[i])^2 * (1 + x[i])^(3/2))
+            else
+                DD[i,j] = (-1)^(i+j) * (2 * x[i]^2 - x[i] + x[j] - 2) * sqrt((1 + x[j]) / (1 + x[i])) / ((x[i] - x[j])^2 * (1 - x[i]^2))
+            end
+        end
+        return x, D, DD
+
+    elseif inputs.basis::String == "RGR"
+        # Size of abscissa is N + 1
+        n = length(x) - 1
+        mrange = [2* pi * i / (2 * n + 1) for i in 0:n]
+        # Collocation points
+        x = @tturbo @. cos(mrange)
+        print(inputs.basis::String * ": "); show(x); println("") 
+        # First derivative matrix
+        ThreadsX.foreach(Iterators.product(1:n+1, 1:n+1)) do (i,j)
+            if i == j
+                # NB. Arrays start at 1
+                if i == 1 && j == 1
+                    D[i,j] = n * (n + 1) / 3
+                else
+                    D[i,j] = -1 / (2 * (1 - x[i] * x[i]))
+                end
+            elseif i == 1 && j != 1
+                D[i,j] = (-1)^(j-1) * sqrt(2*(1 + x[j])) / (1 - x[j])
+            elseif i != 1 && j == 1
+                D[i,j] = (-1)^(i) / (sqrt(2*(1 + x[i])) * (1 - x[i]))
+            else
+                D[i,j] = (-1)^(i-j) * sqrt((1 + x[j]) / (1 + x[i])) / (x[i] - x[j])
+            end 
+        end
+        # Second derivative matrix
+        ThreadsX.foreach(Iterators.product(1:n+1, 1:n+1)) do (i,j)
+            if i == j
+                # NB. Arrays start at 1
+                if i == 1 && j == 1
+                    DD[i,j] = n * (n - 1) * (n + 1) * (n + 2) / 15
+                else
+                    DD[i,j] = -n * (n + 1) / (3 * (1 - x[i]^2))
+                                - x[i] / (1 - x[i]^2)^2
+                end
+            elseif i == 1 && j != 1
+                DD[i,j] = (-1)^(j-1) * 2 * sqrt(2 * (1 + x[j])) * (n * (n+1) * (1 - x[j]) - 3) / (3 * (1 - x[j])^2)
+            elseif i != 1 && j == 1
+                DD[i,j] = (-1)^i * (2 * x[i] + 1) / (sqrt(2) * (1 - x[i])^2 * (1 + x[i])^(3/2))
+            else
+                DD[i,j] = (-1)^(i+j) * (2 * x[i]^2 - x[i] + x[j] - 2) * sqrt((1 + x[j]) / (1 + x[i])) / ((x[i] - x[j])^2 * (1 - x[i]^2))
+            end
+        end
+        return x, D, DD
+    
     end
-    return foo
 end
 
 ###############
@@ -181,7 +303,7 @@ function L1(x::Array, D::Matrix, DD::Matrix) # Make the L1 operator
     N = length(x)
     foo = Matrix{eltype(x)}(undef, (N,N))
     # Automatic load balancing, false sharing protection
-    ThreadsX.foreach(1:N) do i
+    @views ThreadsX.foreach(1:N) do i
         foo[i,:] = pp_scale(x,i) .* D[i,:] + 
             p_scale(x,i) .* DD[i,:] # Dot operator applies addition to every element
         foo[i,i] -= V_scale(x,i)
@@ -193,7 +315,7 @@ function L2(x::Array, D::Matrix) # Make the L2 operator
     N = length(x)
     foo = Matrix{eltype(x)}(undef, (N,N))
     # Automatic load balancing, false sharing protection
-    ThreadsX.foreach(1:N) do i
+    @views ThreadsX.foreach(1:N) do i
         foo[i,:] = (2 * gamma_scale(x,i)) .* D[i,:] # Dot operator applies addition to every element
         foo[i,i] += gammap_scale(x,i)
     end
@@ -241,16 +363,15 @@ end
 function make_Z(inputs::Inputs, x::Vector)
     Nsteps = inputs.xgrid
     xvals = Vector{eltype(x)}(undef, Nsteps+1)
-    yvals = Vector{eltype(x)}(undef, Nsteps+1)
+    yvals = similar(xvals)
     dx = (inputs.xmax - inputs.xmin)/Nsteps
     dy = (inputs.ymax - inputs.ymin)/Nsteps
-    # Construct vectors of displacements
-    ThreadsX.map!(i->inputs.xmin + i*dx,xvals,0:Nsteps)
-    ThreadsX.map!(i->inputs.ymin + i*dy,yvals,0:Nsteps)
+    xvals .= inputs.xmin .+ dx .* (0:Nsteps)
+    yvals .= inputs.ymin .+ dy .* (0:Nsteps)
     # Meshgrid matrix
     foo = Matrix{Complex{eltype(x)}}(undef, (Nsteps+1, Nsteps+1))
     # Automatic load balancing, false sharing protection
-    ThreadsX.foreach(Iterators.product(1:size(foo)[1], 1:size(foo)[2])) do (i,j) # Index i is incremented first
+    ThreadsX.foreach(Iterators.product(eachindex(xvals), eachindex(yvals))) do (i,j) # Index i is incremented first
         foo[i,j] = xvals[i] + yvals[j]*1im
     end
     return foo
@@ -317,7 +438,7 @@ if length(ARGS) != 1
     println("")
     exit()
 else
-    P = parse(Int32, ARGS[1])
+    P = parse(Int64, ARGS[1])
 end
 
 if nthreads() > 1
@@ -330,12 +451,10 @@ end
 
 # Read the inputs from a file
 inputs = readInputs("./Inputs.txt")
-N = inputs.N
 
-# Construct basis functions
-x = basis(N, P)
-D = make_D(x, N)
-DD = make_DD(x, N, D)
+# Compute the basis
+x, D, DD = make_basis(inputs, P)
+N = length(x)
 
 # Construct L1 and L2 operators
 L = L1(x, D, DD)
@@ -353,18 +472,20 @@ vals = ThreadsX.sort!(GenericLinearAlgebra.eigvals(BigL), alg=ThreadsX.StableQui
 print("Done! Eigenvalues = "); show(vals); println("")
 
 # Write eigenvalues to file
-writeData(inputs, vals)
+io.writeData(vals)
 
 
 ##################################
 #= Calculate the Psuedospectrum =#
 ##################################
 
+
 # Make the meshgrid
 Z = make_Z(inputs, x)
 # Construct the Gram matrices
 G, Ginv = quad.Gram(slf.w, slf.p, slf.V, D, x)
 
+#=
 # Debug
 if debug > 1
     print("Collocation points = ", size(x), " "); show(x); println("")
@@ -413,7 +534,7 @@ if debug > 0
 end
 
 # Write Psuedospectrum to file (x vector for data type)
-writeData(inputs, sig, x)
+io.writeData(sig, x)
 
 print("Done! Sigma = "); show(sig); println("")
 
@@ -430,4 +551,4 @@ dV = cos.((2*pi*50) .* x)
 epsilon = 1e-3
 pert.vpert(epsilon, dV, slf.w, x, G, Ginv, BigL)
 
-
+=#
