@@ -48,7 +48,10 @@ using DelimitedFiles
 
     # Write out the perturbed eigenvalues
     function write(data::Vector)
-        fname = "pEigenvals_N" * string(length(data)) * "P" 
+        # Check for data directory; create if abscent
+        isdir("./data") ? nothing : mkdir("./data")
+        # Construct file name
+        fname = "./data/pEigenvals_N" * string(length(data)) * "P" 
         if eltype(data) == BigFloat || eltype(data) == Complex{BigFloat}
             fname *= string(precision(BigFloat)) * ".txt"
         else
