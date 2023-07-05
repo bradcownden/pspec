@@ -1,13 +1,14 @@
+__precompile__()
+
 #=
 #  Module for specifying functions present in the Sturm-Louiville form of
 #  the L operators. Simplification of the ratios of f(x)/w(x) is assumed to
 #  have been already performed (functions will not be scaled by a density)
 =#
 
-__precompile__()
 module slf
 
-export w, p, pp, gamma, gammap, V
+export w, p, pp, gamma, gammap, V, scale
 
     function s(x::Array, i::Integer) # Automatic datatype matching
         return sqrt(1 - x[i]^2) 
@@ -41,5 +42,6 @@ export w, p, pp, gamma, gammap, V
         return -3 * s(x,i) * (1 - 4 * s(x,i) + x[i] * (34 - 15 * x[i] + 44 * s(x,i))) /
         (4 * (x[i] - 1) * (1 + x[i] + s(x,i))^2 * (-3 + x[i] - 2 * s(x,i))^2)
     end
+
 end
 

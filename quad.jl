@@ -1,8 +1,10 @@
+__precompile__()
+
 #=
 #  Perform Clenshaw-Curtis quadrature on a function: calculate the quadrature points
 #  and weights, then return a matrix whose diagonal is the partial sum
 =#
-__precompile__()
+
 module quad
 
 export Gram

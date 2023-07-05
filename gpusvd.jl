@@ -1,7 +1,8 @@
+__precompile__()
+
 #=
 # Use GPU acceleration to evaluate the entire pseudospectrum at once 
 =#
-__precompile__()
 module gpusvd
 
 export sigma
