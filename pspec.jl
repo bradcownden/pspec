@@ -25,7 +25,7 @@ import .gpusvd, .quad, .slf, .pert, .io
 # Debug 0: no debugging information
 # Debug 1: function timings and matrix inversion check
 # Debug 2: outputs from 1 plus matrix outputs and quadrature check
-const debug = 0
+const debug = 2
 
 #######################################################
 #= Psuedospectrum calculation leveraging parallelism =#
@@ -250,7 +250,7 @@ function make_basis(inputs::Any, P::Int)
         n = length(x) - 1
         mrange = [2* pi * i / (2 * n + 1) for i in 0:n]
         # Collocation points
-        x = @tturbo @. cos(mrange)
+        x = @tturbo @. -cos(mrange)
         print(inputs.basis::String * ": "); show(x); println("") 
         # First derivative matrix
         ThreadsX.foreach(Iterators.product(1:n+1, 1:n+1)) do (i,j)
@@ -483,9 +483,9 @@ io.writeData(vals)
 # Make the meshgrid
 Z = make_Z(inputs, x)
 # Construct the Gram matrices
-G, Ginv = quad.Gram(slf.w, slf.p, slf.V, D, x)
+G, Ginv = quad.Gram(slf.w, slf.p, slf.V, D, x, inputs.basis)
 
-#=
+
 # Debug
 if debug > 1
     print("Collocation points = ", size(x), " "); show(x); println("")
@@ -499,9 +499,10 @@ if debug > 1
         return cos(2 .* x[i]) * sin(x[i])
     end
     print("Integral[Cos(2x)Sin(x),{x,-1,1}] = 0: ")
-    show(sum(diag(quad.quadrature(integrand,x)))); println("")
+    show(sum(diag(quad.quadrature_GL(integrand,x)))); println("")
 end
 
+#=
 # Debug/timing
 if debug > 0
     print("Ginv * G = I: "); println(isapprox(Ginv * G, I))
