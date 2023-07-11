@@ -125,16 +125,44 @@ using LinearAlgebra
         finish!(p)
         return sig
         =#
+
         foo = Vector{Matrix}(undef, length(Z))
         bar = Vector{Matrix}(undef, length(Z))
-        sig = Vector(undef, length(Z))
-        println("Constructing shifted matrices...")
-        ThreadsX.map!(i -> (L - Z[i] .* I), foo, eachindex(Z))
-        println("Constructing adjoint products...")
-        ThreadsX.map!(x -> (Ginv * adjoint(foo[x]) * G) * foo[x], 
-            bar, eachindex(foo))
-        println("Calculating SVDs...")
-        sig = ThreadsX.map(GenericLinearAlgebra.svdvals!, bar)
+        sig = Matrix{eltype(G)}(undef, size(Z))
+
+        # Run memory test to determine best parallel scheme
+        Zsize = sizeof(Z) # in bits
+        Lsize = sizeof(L) # in bits
+        # Total memory usage > (size of Z) / (number of threads) x (size of L)
+        #println("Total pspec size > ", Zsize / Base.Threads.nthreads() * Lsize)
+        # If any single thread requires more than 1 GB of storage
+        # change to low-memory method
+        if Zsize / Base.Threads.nthreads() * Lsize > 1e9
+            p = Progress(length(Z), dt=0.1, desc="Computing pseudospectrum...", 
+            barglyphs=BarGlyphs("[=> ]"), barlen=50)
+            # Automatic load balancing, false sharing protection
+            @inbounds ThreadsX.foreach(CartesianIndices(Z)) do J
+                # Calculate the shifted matrix
+                Lshift = L - Z[J] .* I
+                # Calculate the adjoint
+                Lshift_adj = Ginv * adjoint(Lshift) * G
+                # Calculate the pseudospectrum
+                sig[J] = Float64(real(minimum(GenericLinearAlgebra.svdvals(Lshift_adj * Lshift))))
+                next!(p)
+            end
+            finish!(p)
+        # Otherwise, use faster, high-memory method
+        else
+            println("Constructing shifted matrices...")
+            ThreadsX.map!(i -> (L - Z[i] .* I), foo, eachindex(Z))
+            println("Constructing adjoint products...")
+            ThreadsX.map!(x -> (Ginv * adjoint(foo[x]) * G) * foo[x], 
+                bar, eachindex(foo))
+            foo = nothing
+            println("Calculating SVDs...")
+            sig = ThreadsX.map(GenericLinearAlgebra.svdvals!, bar)
+            bar = nothing
+        end
         # Reshape and return sigma
         return reshape(minimum.(sig), size(Z))
     end
