@@ -21,7 +21,7 @@ using LoopVectorization
     function quadrature_GC(f, x::Vector)
         # Quadrature points
         tquad = Vector{eltype(x)}(undef, length(x))
-        @tturbo for i in eachindex(x)
+        @inbounds ThreadsX.foreach(eachindex(x)) do i
             tquad[i] = 0.5*pi*(2*i - 1)/length(x)
         end
         # Quadrature weights
@@ -30,11 +30,7 @@ using LoopVectorization
         sums = Vector{eltype(x)}(undef, length(x))
         # Use the identity T_n(cos x) = cos(n x) to simplify the calculation of weights
         ThreadsX.foreach(eachindex(x)) do i
-            insum = zero(eltype(x))
-            @turbo for j in 1:Nfl
-                insum += cos(2 * j * tquad[i])/(4*j^2 - 1)
-            end
-            sums[i] = insum
+            sums[i] = ThreadsX.sum(cos(2 * j * tquad[i])/(4*j^2 - 1) for j in 1:Nfl)
             wts[i] = 2 * (1 - 2 * sums[i]) / length(x)
         end
         # Partial sums are the weights times the function evaluated at the 
@@ -49,8 +45,8 @@ using LoopVectorization
     function quadrature_GL(f, x::Vector)
         # Quadrature points
         tquad = Vector{eltype(x)}(undef, length(x))
-        @turbo for i in eachindex(x)
-            tquad = cos(pi * i / length(x))
+        @inbounds ThreadsX.foreach(eachindex(x)) do i
+            tquad[i] = cos(pi * i / length(x))
         end
         kappa = [i == 1 ? 2 : i == length(x) ? 2 : 1 for i in eachindex(x)]
         #ThreadsX.map!(i-> 0.5 * pi * (2*i - 1) / length(x), tquad,1:length(x))
