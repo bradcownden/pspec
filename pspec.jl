@@ -25,7 +25,7 @@ import .gpusvd, .quad, .slf, .pert, .io
 # Debug 0: no debugging information
 # Debug 1: function timings and matrix inversion check
 # Debug 2: outputs from 1 plus matrix outputs and quadrature check
-const debug = 2
+const debug = 0
 
 #######################################################
 #= Psuedospectrum calculation leveraging parallelism =#
@@ -111,18 +111,13 @@ end
 
 # Take inputs to determine the type of collocation grid, grid size,
 # desired precision
-function make_basis(inputs::Any, P::Int)
+function make_basis(inputs::Inputs, P::Int)
 
     # Determine data types and vector lengths
     if P > 64
-        x = Vector{BigFloat}(undef, inputs.N::Int)
+        x = Vector{BigFloat}(undef, inputs.N+1)
     else
-        x = Vector{Float64}(undef, inputs.N::Int)
-    end
-    
-    if inputs.basis::String == "GC"
-        add = Vector{eltype(x)}(undef, 1)
-        append!(x, add)
+        x = Vector{Float64}(undef, inputs.N+1)
     end
 
     # Reference the data type of the collocation vector 
@@ -130,20 +125,19 @@ function make_basis(inputs::Any, P::Int)
     D = Matrix{eltype(x)}(undef, (length(x), length(x)))
     DD = similar(D)
 
+    println("Using the ", inputs.basis, " collocation grid.")
     # Algorithms for different collocation sets
-    if inputs.basis::String == "GC"
+    if inputs.basis == "GC"
         n = length(x)
-        mrange = [pi * (2 * i - 1) / (2 * length(x)) for i in 1:n]
         # Collocation points
-        x = @tturbo @. cos(mrange)
-        print(inputs.basis::String * ": "); show(x); println("") 
+        ThreadsX.map!(i -> cos(pi * (i + 0.5) / n), x, 0:n-1)
         # First derivative matrix
         ThreadsX.foreach(Iterators.product(1:n, 1:n)) do (i,j)
             if i != j
                 D[i,j] = (-1)^(i+j) * sqrt((1 - x[j] * x[j]) /
                 (1 - x[i]^2)) / (x[i] - x[j])
             else
-                D[i,i] = 0.5 * x[i] / (1 - x[i]^2) 
+                D[i,i] = x[i] / (2*(1 - x[i]^2))
             end
         end
         # Second derivative matrix
@@ -163,7 +157,6 @@ function make_basis(inputs::Any, P::Int)
         mrange = [pi*i / N for i in 0:N]
         # Collocation points
         x = @tturbo @. cos(mrange)
-        print(inputs.basis::String * ": "); show(x); println("") 
         kappa = [i == 1 ? 2 : i == n ? 2 : 1 for i in eachindex(x)]
         println(kappa)
         # First derivative matrix
@@ -207,7 +200,6 @@ function make_basis(inputs::Any, P::Int)
         mrange = [pi*(2*n + 1 - 2*i) / (2*n + 1) for i in 0:n]
         # Collocation points
         x = @tturbo @. cos(mrange)
-        print(inputs.basis::String * ": "); show(x); println("") 
         # First derivative matrix
         ThreadsX.foreach(Iterators.product(1:n+1, 1:n+1)) do (i,j)
             if i == j
@@ -251,7 +243,6 @@ function make_basis(inputs::Any, P::Int)
         mrange = [2* pi * i / (2 * n + 1) for i in 0:n]
         # Collocation points
         x = @tturbo @. -cos(mrange)
-        print(inputs.basis::String * ": "); show(x); println("") 
         # First derivative matrix
         ThreadsX.foreach(Iterators.product(1:n+1, 1:n+1)) do (i,j)
             if i == j
@@ -300,10 +291,9 @@ end
 # unscaled versions in the quadrature calculation
 
 function L1(x::Array, D::Matrix, DD::Matrix) # Make the L1 operator
-    N = length(x)
-    foo = Matrix{eltype(x)}(undef, (N,N))
+    foo = Matrix{eltype(x)}(undef, (length(x),length(x)))
     # Automatic load balancing, false sharing protection
-    @views ThreadsX.foreach(1:N) do i
+    @views ThreadsX.foreach(eachindex(x)) do i
         foo[i,:] = pp_scale(x,i) .* D[i,:] + 
             p_scale(x,i) .* DD[i,:] # Dot operator applies addition to every element
         foo[i,i] -= V_scale(x,i)
@@ -312,10 +302,9 @@ function L1(x::Array, D::Matrix, DD::Matrix) # Make the L1 operator
 end
 
 function L2(x::Array, D::Matrix) # Make the L2 operator
-    N = length(x)
-    foo = Matrix{eltype(x)}(undef, (N,N))
+    foo = Matrix{eltype(x)}(undef, (length(x),length(x)))
     # Automatic load balancing, false sharing protection
-    @views ThreadsX.foreach(1:N) do i
+    @views ThreadsX.foreach(eachindex(x)) do i
         foo[i,:] = (2 * gamma_scale(x,i)) .* D[i,:] # Dot operator applies addition to every element
         foo[i,i] += gammap_scale(x,i)
     end
@@ -331,7 +320,7 @@ function s(x::Array, i::Integer)
 end
 
 function w(x::Array, i::Integer) # Automatic datatype matching
-    return x[i]
+    return 1
 end
 
 function p_scale(x::Array, i::Integer) # Automatic datatype matching
@@ -343,17 +332,42 @@ function pp_scale(x::Array, i::Integer) # Automatic datatype matching
 end
 
 function gamma_scale(x::Array, i::Integer) # Automatic datatype matching
-    return (5 * (1 + s(x,i)) + x[i] * (2 - 3 * x[i] + s(x,i))) /
+    return (1 + x[i] + s(x,i)) * (3 - x[i] + 2 * s(x,i)) /
     sqrt((-3 + x[i] - 2 * s(x,i))/(x[i]-1))
 end
 
 function gammap_scale(x::Array, i::Integer) # Automatic datatype matching
-    return 1 / sqrt((-3 + x[i] - 2 * s(x,i))/(x[i]-1))
+    return ((x[i] - 3 - 2 * s(x,i)) / (x[i] - 1))^(-1/2)
 end
 
 function V_scale(x::Array, i::Integer) # Automatic datatype matching
     return 3 * (1 - 4 * s(x,i) + x[i] * (34 - 15 * x[i] + 44 * s(x,i))) /
     (8 * (1 + s(x,i)) * (3 - x[i] + 2 * s(x,i)))
+end
+
+######################
+#= Condition number =#
+######################
+
+function condition(L::Matrix, G::Matrix, Ginv::Matrix)
+    # Condition number for each eigenvalue: k_i = ||v_i|| ||w_i|| / |<v_i,w_i>|
+    # Construct the adjoint from the Gram matrices
+    Ladj = Ginv * adjoint(L) * G
+    # Solve for right-eigenvectors
+    F_r = LinearAlgebra.eigen(L)
+    # Solve for left-eigenvectors
+    F_l = LinearAlgebra.eigen(Ladj)
+    # Calculate the condition numbers of the eigenvalues
+    k = Vector{eltype(G)}(undef, length(F_r.values))
+    @inbounds @views ThreadsX.foreach(eachindex(k)) do i
+        vsize = sqrt(F_r.vectors[:,i]' * G * F_r.vectors[:,i])
+        wsize = sqrt(F_l.vectors[:,i]' * G * F_l.vectors[:,i])
+        # Condition numbers are purely real; imaginary components are 
+        # numerical error only
+        k[i] = real((vsize * wsize) / (F_r.vectors[:,i]' * G * F_l.vectors[:,i]))
+    end
+    # Normalize
+    return k ./ k[1]
 end
 
 ##############################
@@ -454,13 +468,13 @@ inputs = readInputs("./Inputs.txt")
 
 # Compute the basis
 x, D, DD = make_basis(inputs, P)
-N = length(x)
 
 # Construct L1 and L2 operators
 L = L1(x, D, DD)
-LL = L2(x, D)
-
+#LL = L2(x, D)
+LL = zeros(eltype(x),size(L))
 # Stack the matrices
+N = length(x)
 Lupper = reduce(hcat, [zeros(eltype(x), (N,N)), Matrix{Complex{eltype(x)}}(I,N,N)]) # Match the data type of the collocation array
 Llower = reduce(hcat, [L, LL])
 BigL = vcat(Lupper, Llower)
@@ -485,6 +499,11 @@ Z = make_Z(inputs, x)
 # Construct the Gram matrices
 G, Ginv = quad.Gram(slf.w, slf.p, slf.V, D, x, inputs.basis)
 
+# Calculate the condition numbers of the eigenvalues
+println("Calculating conditition numbers...")
+k = condition(BigL, G, Ginv)
+println("Done! Condition numbers = ", k)
+io.writeCondition(k)
 
 # Debug
 if debug > 1
@@ -499,16 +518,15 @@ if debug > 1
         return cos(2 .* x[i]) * sin(x[i])
     end
     print("Integral[Cos(2x)Sin(x),{x,-1,1}] = 0: ")
-    show(sum(diag(quad.quadrature_GL(integrand,x)))); println("")
+    show(sum(diag(quad.quadrature_GC(integrand,x)))); println("")
 end
 
-#=
 # Debug/timing
 if debug > 0
     print("Ginv * G = I: "); println(isapprox(Ginv * G, I))
     # Serial Timing
     println("Timing for serial sigma:")
-    @btime serial_sigma(G, Ginv, Z, BigL)
+    @btime serial_sigma(G, Ginv, Z, BigL) 
     # Large, block matrix
     println("Timing for gpusvd.sigma:")
     @btime gpusvd.sigma(G, Ginv, Z, BigL)
@@ -535,8 +553,7 @@ if debug > 0
 end
 
 # Write Psuedospectrum to file (x vector for data type)
-io.writeData(sig, x)
-
+#io.writeData(sig, x, inputs)
 print("Done! Sigma = "); show(sig); println("")
 
 
@@ -552,4 +569,4 @@ dV = cos.((2*pi*50) .* x)
 epsilon = 1e-3
 pert.vpert(epsilon, dV, slf.w, x, G, Ginv, BigL)
 
-=#
+
