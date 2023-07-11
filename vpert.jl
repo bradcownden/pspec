@@ -51,7 +51,8 @@ using DelimitedFiles
         # Check for data directory; create if abscent
         isdir("./data") ? nothing : mkdir("./data")
         # Construct file name
-        fname = "./data/pEigenvals_N" * string(length(data)) * "P" 
+        this_size = Integer((length(data)-2)/2)
+        fname = "./data/pEigenvals_N" * string(this_size) * "P" 
         if eltype(data) == BigFloat || eltype(data) == Complex{BigFloat}
             fname *= string(precision(BigFloat)) * ".txt"
         else
